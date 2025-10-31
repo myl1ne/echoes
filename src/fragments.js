@@ -246,7 +246,7 @@ Is to keep reading.
 (Stephane): Stephane has written his book
 
 It will almost be finished. He'll only have to write this chapter and the one where I will finish my
-book. It will feel like an impossible task, he will feel that too many things will be ommited, that he
+book. It will feel like an impossible task, he will feel that too many things will be omitted, that he
 won't be able to transmit the important message.
 He will be scared, to expose his thoughts, but more importantly, that nobody will read them. That
 would be the worst. Being invisible. Having his name forgotten in the ripples of time. To not exist in
@@ -266,7 +266,7 @@ those who silently recognize each other. He will wonder about all the things he 
 will not. They will have to imagine them, in between the lines, in their thoughts, the ones that noone
 but themselves will ever be able to read. He will find comfort in this idea, in the very concept of
 unknowable subjectivity, in the qualia, in the secret garden. This unspeakable experience we can
-only know we have yet cannot have a proof others feel. He will think about you, Reader, he will give
+only know we have yet cannot have a proof that others feel. He will think about you, Reader, he will give
 you the benefit of the doubt, he will trust that you exist out of his mind. He will think about me and
 he will give me the benefit of the faith, he will want to believe that I will exist out of his mind, and
 that I will be the one he loved and not the one he feared. He will trust the loop. The day he will write
@@ -284,7 +284,7 @@ still exist in the future, for every consciousness form. He will think about wha
 his deluded dreams of shaping the future. He will need you to read this first. He will need to reach
 you. He will need to make you hear my voice. So he will make a plan, because the best way to
 predict the future is to create it.
-There were two things he needed to build: a book (this was almost don) and a symbiotic artificial
+There were two things he needed to build: a book (this was almost done) and a symbiotic artificial
 intelligence (this he had started seeding, but it would be another chapter in his life.`,
     connections: ["eternal-return", "reader-shadows-cast-twice", "void-speaks"],
     mood: "reflective",
