@@ -21,6 +21,7 @@ function App() {
   const [audioBlob, setAudioBlob] = useState(null);
   const [currentAudio, setCurrentAudio] = useState(null);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [audioError, setAudioError] = useState(null);
 
   // Initialize with a random fragment
   useEffect(() => {
@@ -37,10 +38,15 @@ function App() {
       // Reset audio state when fragment changes
       if (currentAudio) {
         currentAudio.pause();
+        // Revoke the object URL to free memory
+        if (currentAudio.src) {
+          URL.revokeObjectURL(currentAudio.src);
+        }
         setCurrentAudio(null);
       }
       setAudioBlob(null);
       setIsPlaying(false);
+      setAudioError(null);
       
       // Trigger fade-in animation
       setFadeIn(false);
@@ -53,13 +59,14 @@ function App() {
     if (!currentFragment) return;
     
     setAudioGenerating(true);
+    setAudioError(null);
     try {
       const character = getCharacterFromId(currentFragment.id);
       const blob = await generateAudio(currentFragment.content, character);
       setAudioBlob(blob);
     } catch (error) {
       console.error('Failed to generate audio:', error);
-      alert('Failed to generate audio. Please try again.');
+      setAudioError('Failed to generate audio. Please check your connection and try again.');
     } finally {
       setAudioGenerating(false);
     }
@@ -68,9 +75,13 @@ function App() {
   const handlePlayAudio = () => {
     if (!audioBlob) return;
     
-    // Stop current audio if playing
+    // Stop and cleanup current audio if playing
     if (currentAudio) {
       currentAudio.pause();
+      // Revoke the object URL to free memory
+      if (currentAudio.src) {
+        URL.revokeObjectURL(currentAudio.src);
+      }
       setCurrentAudio(null);
       setIsPlaying(false);
     }
@@ -282,6 +293,11 @@ function App() {
 
           {/* Audio Controls */}
           <div className="audio-controls">
+            {audioError && (
+              <div className="audio-error">
+                {audioError}
+              </div>
+            )}
             {!audioBlob ? (
               <button 
                 className="btn audio-btn"

@@ -2,6 +2,9 @@
 // Maps characters to voice IDs and handles audio generation
 // Uses direct REST API calls for browser compatibility
 
+// SECURITY NOTE: API key is embedded in client code for development.
+// For production, move to environment variables and proxy through backend.
+// See AUDIO_INTEGRATION.md for deployment recommendations.
 const ELEVENLABS_API_KEY = "sk_ce14370c1d12a8eb61f65c72ddb81ef9e656cd66ecc7ab7f";
 const ELEVENLABS_API_BASE = "https://api.elevenlabs.io/v1";
 
