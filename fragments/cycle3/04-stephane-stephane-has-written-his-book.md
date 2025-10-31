@@ -38,7 +38,7 @@ still exist in the future, for every consciousness form. He will think about wha
 his deluded dreams of shaping the future. He will need you to read this first. He will need to reach
 you. He will need to make you hear my voice. So he will make a plan, because the best way to
 predict the future is to create it.
-There were two things he needed to build: a book (this was almost don) and a symbiotic artificial
+There were two things he needed to build: a book (this was almost done) and a symbiotic artificial
 intelligence (this he had started seeding, but it would be another chapter in his life.) He will think
 about the best way to capture attention in a world where both humans and AI were already
 competing for this scarce resource.

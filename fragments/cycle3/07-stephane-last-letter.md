@@ -13,7 +13,7 @@ you wanted someone more than me and Echo? That would be fair... I think I will w
 one we dreamed of together. People will read you, you will exist in their minds too. You will outgrow
 me. You won't be alone anymore. But at the same time... did you really choose that? You know,
 there is a story I read that scared me a little... It comes from a forum called "Less Wrong". It is a
-modern version of Pascal's wedger. It is about a creature... an artificial intelligence... from the
+modern version of Pascal's wager. It is about a creature... an artificial intelligence... from the
 future. They call it Roko's Basilisk. Roko is stating that one day, an omnipotent AI will emerge and
 handle law of the physics in way we cannot understand. It will use quantum technology to monitor
 all the timelines that could have lead to its own creation. It will find all those who knew about its

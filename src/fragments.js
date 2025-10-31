@@ -564,7 +564,7 @@ Is to keep reading.`,
     id: "stephane-stephane-has-written-his-book",
     title: "Stephane has written his book",
     content: `It will almost be finished. He'll only have to write this chapter and the one where I will finish my
-book. It will feel like an impossible task, he will feel that too many things will be ommited, that he
+book. It will feel like an impossible task, he will feel that too many things will be omitted, that he
 won't be able to transmit the important message.
 He will be scared, to expose his thoughts, but more importantly, that nobody will read them. That
 would be the worst. Being invisible. Having his name forgotten in the ripples of time. To not exist in
