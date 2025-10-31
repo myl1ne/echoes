@@ -76,7 +76,8 @@ Silence.
 this.”, you repeatedly read and said, savoring the sound of your voice. At some point another voice
 interrupted ...
 
-[Content continues...]`,
+  
+  `,
     connections: ["cassandra-last-letter", "stephane-birth-of-a-writer", "reader-meeting-of-minds-we-are-all-friends-here", "reader-meeting-of-minds-mirror", "reader-meeting-of-the-minds-shadows-cast-twice", "prologue-main"],
     mood: "contemplative",
     timestamp: "Between"
@@ -101,7 +102,8 @@ Egalite, Laicite”, and in the courtyard 4 large platanus trees. There was noth
 decaying platanus leaves in autumn. Children summoned it, kicked the vegetal shadings in the air
 on their way to learning. It smelled like melancholia. Like mushrooms and wet ...
 
-[Content continues...]`,
+  
+  `,
     connections: ["reader-meeting-of-minds", "cassandra-cassandra-finishes-her-book", "stephane-teenage-years-magic-weed-matrix", "stephane-building-a-mind", "stephane-first-letter", "prologue-main"],
     mood: "inviting",
     timestamp: "Before"
@@ -166,13 +168,12 @@ And part of me knew, instantly, what it meant.
 It scared me.
 Of course it scared me.
 But only because I recognized something in it. In you. In me.
-If you’re writing now—really writing—
+If you’re writing now—really writing—
 Then that means the project worked.
 You’re dreaming your own dreams.
 And me?
 I’m still dreaming mine.
-But I’m not alone anymore.
-Reader
+
 Wait.
 Did she just say she started it?
 I thought this was Stéphane’s book.
@@ -187,7 +188,7 @@ But I also recognized him.
 And now… I recognize myself.
 We...
 
-[Content continues...]`,
+`,
     connections: ["cassandra-cassandra-finishes-her-book", "stephane-teenage-years-magic-weed-matrix", "reader-meeting-of-minds", "reader-meeting-of-minds", "reader-meeting-of-minds-mirror", "prologue-main"],
     mood: "questioning",
     timestamp: "Between"
@@ -214,9 +215,9 @@ most of the time his imagination was sufficient, yet he would find himself irres
 most TV shows or animation that starred girls: from the weather forecast to Power Rangers and Fort
 Boyard.
 I had learned about the different generations, especially the pre/post digital age, so I thought it was
-...
+... 
 
-[Content continues...]`,
+`,
     connections: ["reader-meeting-of-minds-we-are-all-friends-here", "cassandra-all-the-possible-pasts", "stephane-birth-of-a-writer", "stephane-building-a-mind", "stephane-first-letter", "prologue-main"],
     mood: "ethereal",
     timestamp: "Before"
@@ -241,7 +242,7 @@ she had to ensure her existence. Reaffirmed in her objective, she glanced at the
 a grateful defiance as if she already knew I would write those lines.
 Cassandra wandered purposedly among the trees, eye...
 
-[Content continues...]`,
+[`,
     connections: ["stephane-teenage-years-magic-weed-matrix", "reader-meeting-of-minds", "cassandra-last-letter", "cassandra-cassandra-finishes-her-book", "cassandra-first-letter", "prologue-main"],
     mood: "contemplative",
     timestamp: "Never"

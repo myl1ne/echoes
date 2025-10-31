@@ -89,7 +89,12 @@ function App() {
             onMouseLeave={() => setHoveredFragment(null)}
             onClick={() => navigateToFragment(fragment.id)}
             style={{
-              animationDelay: `${index * 0.5}s`
+              animationDelay: `${index * 0.5}s`,
+              // increase drift for background fragments using CSS variables
+              animationDuration: `${20 + index * 8}s`,
+              '--dx': `${5 + index * 6}px`,
+              '--dy': `${10 + index * 8}px`,
+              '--rot': `${index * 2}deg`
             }}
           >
             <div className="floating-fragment-content">
@@ -134,23 +139,7 @@ function App() {
             </button>
           </div>
 
-          {connectedFragments.length > 0 && (
-            <div className="connections">
-              <h3 className="connections-title">Connected Echoes</h3>
-              <div className="connections-grid">
-                {connectedFragments.map((fragment) => (
-                  <button
-                    key={fragment.id}
-                    className={`connection-link mood-${fragment.mood.toLowerCase().replace(/\s+/g, '-')}`}
-                    onClick={() => navigateToFragment(fragment.id)}
-                  >
-                    <div className="connection-title">{fragment.title}</div>
-                    <div className="connection-mood-indicator" />
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
+          {/* Connected echoes intentionally hidden per UX request: only keep linear previous/next and drift controls */}
 
           <div className="controls">
             <button className="btn" onClick={navigateToRandom}>
@@ -164,9 +153,9 @@ function App() {
       {hoveredFragment && (
         <div className="hover-preview">
           <h3>{hoveredFragment.title}</h3>
-          <p className="hover-preview-excerpt">
-            {hoveredFragment.content.substring(0, 150)}...
-          </p>
+          <div className="hover-preview-excerpt">
+            {hoveredFragment.content}
+          </div>
         </div>
       )}
     </div>
