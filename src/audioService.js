@@ -1,14 +1,9 @@
 // Audio service for ElevenLabs text-to-speech integration
 // Maps characters to voice IDs and handles audio generation
+// Uses direct REST API calls for browser compatibility
 
-import { ElevenLabsClient } from "@elevenlabs/elevenlabs-js";
-
-// Initialize ElevenLabs client
 const ELEVENLABS_API_KEY = "sk_ce14370c1d12a8eb61f65c72ddb81ef9e656cd66ecc7ab7f";
-
-const client = new ElevenLabsClient({
-  apiKey: ELEVENLABS_API_KEY,
-});
+const ELEVENLABS_API_BASE = "https://api.elevenlabs.io/v1";
 
 // Voice mappings for each character
 // Using distinct ElevenLabs default voices for each character
@@ -31,20 +26,31 @@ export async function generateAudio(text, character = 'Unknown') {
   try {
     const voiceId = VOICE_MAPPINGS[character] || VOICE_MAPPINGS['Unknown'];
     
-    // Generate audio using ElevenLabs API
-    const audio = await client.generate({
-      voice: voiceId,
-      text: text,
-      model_id: "eleven_monolingual_v1",
+    // Generate audio using ElevenLabs REST API
+    const response = await fetch(`${ELEVENLABS_API_BASE}/text-to-speech/${voiceId}`, {
+      method: 'POST',
+      headers: {
+        'Accept': 'audio/mpeg',
+        'Content-Type': 'application/json',
+        'xi-api-key': ELEVENLABS_API_KEY,
+      },
+      body: JSON.stringify({
+        text: text,
+        model_id: 'eleven_monolingual_v1',
+        voice_settings: {
+          stability: 0.5,
+          similarity_boost: 0.5,
+        }
+      }),
     });
 
-    // Convert the audio stream to a blob
-    const chunks = [];
-    for await (const chunk of audio) {
-      chunks.push(chunk);
+    if (!response.ok) {
+      throw new Error(`ElevenLabs API error: ${response.status} ${response.statusText}`);
     }
-    
-    return new Blob(chunks, { type: 'audio/mpeg' });
+
+    // Convert response to blob
+    const arrayBuffer = await response.arrayBuffer();
+    return new Blob([arrayBuffer], { type: 'audio/mpeg' });
   } catch (error) {
     console.error('Error generating audio:', error);
     throw error;

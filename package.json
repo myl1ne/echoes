@@ -16,7 +16,6 @@
     "vite": "^7.1.12"
   },
   "dependencies": {
-    "@elevenlabs/elevenlabs-js": "^2.21.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0"
   }
