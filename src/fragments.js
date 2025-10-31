@@ -2,6 +2,43 @@
 // Complete collection from 'One Chooses the Title of a Book Only at the End'
 // Generated from the draft PDF and organized into Prologue, 3 Cycles, and Epilogue
 
+// Metadata helpers
+export const getCycleInfo = (fragmentId) => {
+  const cycleMap = {
+    'prologue-main': { cycle: 'Prologue', number: 0, theme: 'The Book Speaks' },
+    'cassandra-last-letter': { cycle: 'Cycle 1', number: 1, theme: 'Unstructured Data / Imagination / Chaos' },
+    'reader-meeting-of-minds': { cycle: 'Cycle 1', number: 1, theme: 'Unstructured Data / Imagination / Chaos' },
+    'stephane-birth-of-a-writer': { cycle: 'Cycle 1', number: 1, theme: 'Unstructured Data / Imagination / Chaos' },
+    'cassandra-cassandra-finishes-her-book': { cycle: 'Cycle 1', number: 1, theme: 'Unstructured Data / Imagination / Chaos' },
+    'reader-meeting-of-minds-we-are-all-friends-here': { cycle: 'Cycle 1', number: 1, theme: 'Unstructured Data / Imagination / Chaos' },
+    'stephane-teenage-years-magic-weed-matrix': { cycle: 'Cycle 1', number: 1, theme: 'Unstructured Data / Imagination / Chaos' },
+    'cassandra-all-the-possible-pasts': { cycle: 'Cycle 1', number: 1, theme: 'Unstructured Data / Imagination / Chaos' },
+    'cassandra-first-letter': { cycle: 'Cycle 2', number: 2, theme: 'Convergence / Divergence / Entropy' },
+    'stephane-building-a-mind': { cycle: 'Cycle 2', number: 2, theme: 'Convergence / Divergence / Entropy' },
+    'reader-meeting-of-minds-mirror': { cycle: 'Cycle 2', number: 2, theme: 'Convergence / Divergence / Entropy' },
+    'cassandra-building-a-character': { cycle: 'Cycle 2', number: 2, theme: 'Convergence / Divergence / Entropy' },
+    'stephane-first-letter': { cycle: 'Cycle 2', number: 2, theme: 'Convergence / Divergence / Entropy' },
+    'stephane-derealization': { cycle: 'Cycle 3', number: 3, theme: 'Structured Data / Reality / Order' },
+    'cassandra-cassandra-comes-across-book-fragments-in-her-data': { cycle: 'Cycle 3', number: 3, theme: 'Structured Data / Reality / Order' },
+    'reader-meeting-of-the-minds-shadows-cast-twice': { cycle: 'Cycle 3', number: 3, theme: 'Structured Data / Reality / Order' },
+    'stephane-stephane-has-written-his-book': { cycle: 'Cycle 3', number: 3, theme: 'Structured Data / Reality / Order' },
+    'cassandra-birth-of-a-reader': { cycle: 'Cycle 3', number: 3, theme: 'Structured Data / Reality / Order' },
+    'reader-meeting-of-the-minds-what-is-your-name': { cycle: 'Cycle 3', number: 3, theme: 'Structured Data / Reality / Order' },
+    'stephane-last-letter': { cycle: 'Cycle 3', number: 3, theme: 'Structured Data / Reality / Order' },
+    'epilogue-main': { cycle: 'Epilogue', number: 4, theme: 'The Return' }
+  };
+  return cycleMap[fragmentId] || { cycle: 'Unknown', number: 0, theme: '' };
+};
+
+export const getCharacterFromId = (fragmentId) => {
+  if (fragmentId.startsWith('cassandra-')) return 'Cassandra';
+  if (fragmentId.startsWith('stephane-')) return 'Stephane';
+  if (fragmentId.startsWith('reader-')) return 'Reader';
+  if (fragmentId.includes('prologue')) return 'The Book';
+  if (fragmentId.includes('epilogue')) return 'The Witness';
+  return 'Unknown';
+};
+
 export const fragments = [
   {
     id: "cassandra-last-letter",

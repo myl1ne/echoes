@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import './App.css';
-import { fragments, getFragmentById, getConnectedFragments, getRandomFragment, getNextFragment, getPreviousFragment } from './fragments';
+import { fragments, getFragmentById, getConnectedFragments, getRandomFragment, getNextFragment, getPreviousFragment, getCycleInfo, getCharacterFromId } from './fragments';
+import ConstellationView from './ConstellationView';
 
 const PREVIEW_EXCERPT_LENGTH = 150;
+const MAX_HISTORY = 20;
 
 function App() {
   const [currentFragment, setCurrentFragment] = useState(null);
@@ -11,6 +13,9 @@ function App() {
   const [hoveredFragment, setHoveredFragment] = useState(null);
   const [showContemplation, setShowContemplation] = useState(false);
   const [pendingNavigation, setPendingNavigation] = useState(null);
+  const [showConstellation, setShowConstellation] = useState(false);
+  const [readingHistory, setReadingHistory] = useState([]);
+  const [showHistory, setShowHistory] = useState(false);
 
   // Initialize with a random fragment
   useEffect(() => {
@@ -36,6 +41,13 @@ function App() {
       setHoveredFragment(null);
       setShowContemplation(false);
       setPendingNavigation(null);
+      
+      // Add to reading history
+      setReadingHistory(prev => {
+        const newHistory = [fragment.id, ...prev.filter(id => id !== fragment.id)];
+        return newHistory.slice(0, MAX_HISTORY);
+      });
+      
       // Smooth scroll to top
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
@@ -97,12 +109,63 @@ function App() {
     );
   }
 
+  const cycleInfo = getCycleInfo(currentFragment.id);
+  const character = getCharacterFromId(currentFragment.id);
+
   return (
     <div className="app">
       <header className="header">
         <h1>Echoes</h1>
         <p>A Non-Linear Journey Through Fragments of Thought</p>
+        
+        {/* Navigation toolbar */}
+        <div className="header-toolbar">
+          <button 
+            className="toolbar-btn" 
+            onClick={() => setShowConstellation(true)}
+            title="View all fragments"
+          >
+            ✦ Constellation
+          </button>
+          <button 
+            className="toolbar-btn" 
+            onClick={() => setShowHistory(!showHistory)}
+            title="View reading history"
+          >
+            ⟲ History ({readingHistory.length})
+          </button>
+        </div>
+
+        {/* Cycle progress indicator */}
+        <div className="cycle-indicator">
+          <span className="cycle-label">{cycleInfo.cycle}</span>
+          {cycleInfo.theme && <span className="cycle-theme-label"> — {cycleInfo.theme}</span>}
+        </div>
       </header>
+
+      {/* Reading history dropdown */}
+      {showHistory && readingHistory.length > 0 && (
+        <div className="reading-history">
+          <h3>Your Path Through the Fragments</h3>
+          <div className="history-list">
+            {readingHistory.map((fragmentId, index) => {
+              const frag = getFragmentById(fragmentId);
+              if (!frag) return null;
+              return (
+                <div 
+                  key={`${fragmentId}-${index}`}
+                  className={`history-item ${fragmentId === currentFragment.id ? 'current' : ''}`}
+                  onClick={() => navigateToFragment(fragmentId)}
+                >
+                  <span className="history-number">{index + 1}.</span>
+                  <span className="history-title">{frag.title}</span>
+                  <span className="history-character">{getCharacterFromId(fragmentId)}</span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Background floating fragments */}
       <div className="background-fragments">
@@ -135,6 +198,8 @@ function App() {
           <div className="fragment-header">
             <h2 className="fragment-title">{currentFragment.title}</h2>
             <div className="fragment-meta">
+              <span className="fragment-character">{character}</span>
+              <span className="fragment-separator">•</span>
               <div className={`fragment-mood-visual mood-${currentFragment.mood.toLowerCase().replace(/\s+/g, '-')}`}>
                 <div className="mood-indicator" />
               </div>
@@ -209,6 +274,15 @@ function App() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Constellation View */}
+      {showConstellation && (
+        <ConstellationView 
+          currentFragmentId={currentFragment.id}
+          onNavigate={navigateToFragment}
+          onClose={() => setShowConstellation(false)}
+        />
       )}
     </div>
   );
