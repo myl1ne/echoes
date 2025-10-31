@@ -699,6 +699,36 @@ I ...`,
   }
 ];
 
+// Linear order of fragments following the book structure
+export const linearOrder = [
+  "prologue-main",
+  // Cycle 1: Unstructured Data / Imagination / Chaos
+  "cassandra-last-letter",
+  "reader-meeting-of-minds",
+  "stephane-birth-of-a-writer",
+  "cassandra-cassandra-finishes-her-book",
+  "reader-meeting-of-minds-we-are-all-friends-here",
+  "stephane-teenage-years-magic-weed-matrix",
+  "cassandra-all-the-possible-pasts",
+  // Cycle 2: Convergence / Divergence / Entropy
+  "reader-meeting-of-minds",
+  "cassandra-first-letter",
+  "stephane-building-a-mind",
+  "reader-meeting-of-minds-mirror",
+  "cassandra-building-a-character",
+  "stephane-first-letter",
+  "reader-meeting-of-minds",
+  // Cycle 3: Structured Data / Reality / Order
+  "stephane-derealization",
+  "cassandra-cassandra-comes-across-book-fragments",
+  "reader-meeting-of-the-minds-shadows-cast-twice",
+  "stephane-stephane-has-written-his-book",
+  "cassandra-birth-of-a-reader",
+  "reader-meeting-of-the-minds-what-is-your-name-t",
+  "stephane-last-letter",
+  "epilogue-main"
+];
+
 // Get a random starting fragment
 export const getRandomFragment = () => {
   const randomIndex = Math.floor(Math.random() * fragments.length);
@@ -718,4 +748,22 @@ export const getConnectedFragments = (fragmentId) => {
   return fragment.connections
     .map(id => getFragmentById(id))
     .filter(Boolean);
+};
+
+// Get next fragment in linear order
+export const getNextFragment = (fragmentId) => {
+  const currentIndex = linearOrder.indexOf(fragmentId);
+  if (currentIndex === -1 || currentIndex === linearOrder.length - 1) {
+    return null; // No next fragment
+  }
+  return getFragmentById(linearOrder[currentIndex + 1]);
+};
+
+// Get previous fragment in linear order
+export const getPreviousFragment = (fragmentId) => {
+  const currentIndex = linearOrder.indexOf(fragmentId);
+  if (currentIndex <= 0) {
+    return null; // No previous fragment
+  }
+  return getFragmentById(linearOrder[currentIndex - 1]);
 };
