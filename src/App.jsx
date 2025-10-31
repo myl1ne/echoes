@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import './App.css';
 import { fragments, getFragmentById, getConnectedFragments, getRandomFragment, getNextFragment, getPreviousFragment, getCycleInfo, getCharacterFromId } from './fragments';
 import ConstellationView from './ConstellationView';
+import { generateAudio, playAudioBlob, downloadAudio } from './audioService';
 
 const PREVIEW_EXCERPT_LENGTH = 150;
 const MAX_HISTORY = 20;
@@ -16,6 +17,10 @@ function App() {
   const [showConstellation, setShowConstellation] = useState(false);
   const [readingHistory, setReadingHistory] = useState([]);
   const [showHistory, setShowHistory] = useState(false);
+  const [audioGenerating, setAudioGenerating] = useState(false);
+  const [audioBlob, setAudioBlob] = useState(null);
+  const [currentAudio, setCurrentAudio] = useState(null);
+  const [isPlaying, setIsPlaying] = useState(false);
 
   // Initialize with a random fragment
   useEffect(() => {
@@ -29,11 +34,74 @@ function App() {
       const connected = getConnectedFragments(currentFragment.id);
       setConnectedFragments(connected);
       
+      // Reset audio state when fragment changes
+      if (currentAudio) {
+        currentAudio.pause();
+        setCurrentAudio(null);
+      }
+      setAudioBlob(null);
+      setIsPlaying(false);
+      
       // Trigger fade-in animation
       setFadeIn(false);
       setTimeout(() => setFadeIn(true), 50);
     }
   }, [currentFragment]);
+
+  // Audio control functions
+  const handleGenerateAudio = async () => {
+    if (!currentFragment) return;
+    
+    setAudioGenerating(true);
+    try {
+      const character = getCharacterFromId(currentFragment.id);
+      const blob = await generateAudio(currentFragment.content, character);
+      setAudioBlob(blob);
+    } catch (error) {
+      console.error('Failed to generate audio:', error);
+      alert('Failed to generate audio. Please try again.');
+    } finally {
+      setAudioGenerating(false);
+    }
+  };
+
+  const handlePlayAudio = () => {
+    if (!audioBlob) return;
+    
+    // Stop current audio if playing
+    if (currentAudio) {
+      currentAudio.pause();
+      setCurrentAudio(null);
+      setIsPlaying(false);
+    }
+    
+    const audio = playAudioBlob(audioBlob);
+    setCurrentAudio(audio);
+    setIsPlaying(true);
+    
+    audio.addEventListener('ended', () => {
+      setIsPlaying(false);
+      setCurrentAudio(null);
+    });
+    
+    audio.addEventListener('pause', () => {
+      setIsPlaying(false);
+    });
+  };
+
+  const handlePauseAudio = () => {
+    if (currentAudio) {
+      currentAudio.pause();
+      setIsPlaying(false);
+    }
+  };
+
+  const handleDownloadAudio = () => {
+    if (!audioBlob || !currentFragment) return;
+    
+    const filename = `${currentFragment.id}-${getCharacterFromId(currentFragment.id)}.mp3`;
+    downloadAudio(audioBlob, filename);
+  };
 
   const performNavigation = (fragment) => {
     if (fragment) {
@@ -210,6 +278,44 @@ function App() {
 
           <div className="fragment-content">
             {currentFragment.content}
+          </div>
+
+          {/* Audio Controls */}
+          <div className="audio-controls">
+            {!audioBlob ? (
+              <button 
+                className="btn audio-btn"
+                onClick={handleGenerateAudio}
+                disabled={audioGenerating}
+              >
+                {audioGenerating ? '🎵 Generating Voice...' : '🎵 Generate Audio'}
+              </button>
+            ) : (
+              <div className="audio-controls-group">
+                <button 
+                  className="btn audio-btn"
+                  onClick={isPlaying ? handlePauseAudio : handlePlayAudio}
+                >
+                  {isPlaying ? '⏸ Pause' : '▶ Play Audio'}
+                </button>
+                <button 
+                  className="btn audio-btn"
+                  onClick={handleDownloadAudio}
+                >
+                  ⬇ Download
+                </button>
+                <button 
+                  className="btn audio-btn"
+                  onClick={handleGenerateAudio}
+                  disabled={audioGenerating}
+                >
+                  ♻ Regenerate
+                </button>
+                <span className="audio-voice-info">
+                  Voice: {character}
+                </span>
+              </div>
+            )}
           </div>
 
           {/* Linear navigation */}
