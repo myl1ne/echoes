@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import './App.css';
 import { fragments, getFragmentById, getConnectedFragments, getRandomFragment, getNextFragment, getPreviousFragment } from './fragments';
 
+const PREVIEW_EXCERPT_LENGTH = 150;
+
 function App() {
   const [currentFragment, setCurrentFragment] = useState(null);
   const [connectedFragments, setConnectedFragments] = useState([]);
@@ -165,7 +167,7 @@ function App() {
         <div className="hover-preview">
           <h3>{hoveredFragment.title}</h3>
           <p className="hover-preview-excerpt">
-            {hoveredFragment.content.substring(0, 150)}...
+            {hoveredFragment.content.substring(0, PREVIEW_EXCERPT_LENGTH)}...
           </p>
         </div>
       )}
