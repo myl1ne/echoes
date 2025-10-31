@@ -1,30 +1,34 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import './ConstellationView.css';
 import { fragments, getCycleInfo, getCharacterFromId } from './fragments';
 
 const ConstellationView = ({ currentFragmentId, onNavigate, onClose }) => {
   const [hoveredFragment, setHoveredFragment] = useState(null);
 
-  // Group fragments by cycle
-  const fragmentsByCycle = {
-    'Prologue': [],
-    'Cycle 1': [],
-    'Cycle 2': [],
-    'Cycle 3': [],
-    'Epilogue': []
-  };
+  // Group fragments by cycle - memoized since fragments array is static
+  const fragmentsByCycle = useMemo(() => {
+    const grouped = {
+      'Prologue': [],
+      'Cycle 1': [],
+      'Cycle 2': [],
+      'Cycle 3': [],
+      'Epilogue': []
+    };
 
-  fragments.forEach(fragment => {
-    const cycleInfo = getCycleInfo(fragment.id);
-    const cycleName = cycleInfo.cycle;
-    if (fragmentsByCycle[cycleName]) {
-      fragmentsByCycle[cycleName].push({
-        ...fragment,
-        cycleInfo,
-        character: getCharacterFromId(fragment.id)
-      });
-    }
-  });
+    fragments.forEach(fragment => {
+      const cycleInfo = getCycleInfo(fragment.id);
+      const cycleName = cycleInfo.cycle;
+      if (grouped[cycleName]) {
+        grouped[cycleName].push({
+          ...fragment,
+          cycleInfo,
+          character: getCharacterFromId(fragment.id)
+        });
+      }
+    });
+
+    return grouped;
+  }, []); // Empty dependency array since fragments is static
 
   const getCharacterColor = (character) => {
     const colors = {

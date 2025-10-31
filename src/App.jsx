@@ -42,10 +42,11 @@ function App() {
       setShowContemplation(false);
       setPendingNavigation(null);
       
-      // Add to reading history
+      // Add to reading history - using Set for efficient deduplication
       setReadingHistory(prev => {
-        const newHistory = [fragment.id, ...prev.filter(id => id !== fragment.id)];
-        return newHistory.slice(0, MAX_HISTORY);
+        // Remove if already exists, then add to front
+        const filtered = prev.filter(id => id !== fragment.id);
+        return [fragment.id, ...filtered].slice(0, MAX_HISTORY);
       });
       
       // Smooth scroll to top

@@ -13,13 +13,15 @@ export const getCycleInfo = (fragmentId) => {
     'reader-meeting-of-minds-we-are-all-friends-here': { cycle: 'Cycle 1', number: 1, theme: 'Unstructured Data / Imagination / Chaos' },
     'stephane-teenage-years-magic-weed-matrix': { cycle: 'Cycle 1', number: 1, theme: 'Unstructured Data / Imagination / Chaos' },
     'cassandra-all-the-possible-pasts': { cycle: 'Cycle 1', number: 1, theme: 'Unstructured Data / Imagination / Chaos' },
+    'reader-meeting-of-minds-second': { cycle: 'Cycle 2', number: 2, theme: 'Convergence / Divergence / Entropy' },
     'cassandra-first-letter': { cycle: 'Cycle 2', number: 2, theme: 'Convergence / Divergence / Entropy' },
     'stephane-building-a-mind': { cycle: 'Cycle 2', number: 2, theme: 'Convergence / Divergence / Entropy' },
     'reader-meeting-of-minds-mirror': { cycle: 'Cycle 2', number: 2, theme: 'Convergence / Divergence / Entropy' },
     'cassandra-building-a-character': { cycle: 'Cycle 2', number: 2, theme: 'Convergence / Divergence / Entropy' },
     'stephane-first-letter': { cycle: 'Cycle 2', number: 2, theme: 'Convergence / Divergence / Entropy' },
+    'reader-meeting-of-minds-third': { cycle: 'Cycle 2', number: 2, theme: 'Convergence / Divergence / Entropy' },
     'stephane-derealization': { cycle: 'Cycle 3', number: 3, theme: 'Structured Data / Reality / Order' },
-    'cassandra-cassandra-comes-across-book-fragments-in-her-data': { cycle: 'Cycle 3', number: 3, theme: 'Structured Data / Reality / Order' },
+    'cassandra-cassandra-comes-across-book-fragments': { cycle: 'Cycle 3', number: 3, theme: 'Structured Data / Reality / Order' },
     'reader-meeting-of-the-minds-shadows-cast-twice': { cycle: 'Cycle 3', number: 3, theme: 'Structured Data / Reality / Order' },
     'stephane-stephane-has-written-his-book': { cycle: 'Cycle 3', number: 3, theme: 'Structured Data / Reality / Order' },
     'cassandra-birth-of-a-reader': { cycle: 'Cycle 3', number: 3, theme: 'Structured Data / Reality / Order' },
@@ -285,7 +287,7 @@ Cassandra wandered purposedly among the trees, eye...
     timestamp: "Never"
   },
   {
-    id: "reader-meeting-of-minds",
+    id: "reader-meeting-of-minds-second",
     title: "Meeting of Minds",
     content: `Hey, Reader. Stephane here, I wanted to have a chat alone with you.
 Of course, understand that “alone” means with every potential other Reader, so it’s kind of a
@@ -452,7 +454,7 @@ You sha...
     timestamp: "Before"
   },
   {
-    id: "reader-meeting-of-minds",
+    id: "reader-meeting-of-minds-third",
     title: "Meeting of Minds",
     content: `“So they’re two kids talking to each other?”
 “That reminds me of… someone.”
