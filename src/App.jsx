@@ -9,6 +9,8 @@ function App() {
   const [connectedFragments, setConnectedFragments] = useState([]);
   const [fadeIn, setFadeIn] = useState(false);
   const [hoveredFragment, setHoveredFragment] = useState(null);
+  const [showContemplation, setShowContemplation] = useState(false);
+  const [pendingNavigation, setPendingNavigation] = useState(null);
 
   // Initialize with a random fragment
   useEffect(() => {
@@ -28,39 +30,60 @@ function App() {
     }
   }, [currentFragment]);
 
-  const navigateToFragment = (fragmentId) => {
-    const fragment = getFragmentById(fragmentId);
+  const performNavigation = (fragment) => {
     if (fragment) {
       setCurrentFragment(fragment);
       setHoveredFragment(null);
+      setShowContemplation(false);
+      setPendingNavigation(null);
       // Smooth scroll to top
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
   };
 
+  const initiateNavigation = (type, targetId = null) => {
+    let fragment = null;
+    
+    switch(type) {
+      case 'fragment':
+        fragment = getFragmentById(targetId);
+        break;
+      case 'random':
+        fragment = getRandomFragment();
+        break;
+      case 'next':
+        fragment = getNextFragment(currentFragment.id);
+        break;
+      case 'previous':
+        fragment = getPreviousFragment(currentFragment.id);
+        break;
+    }
+    
+    if (fragment) {
+      // Randomly show contemplation (10% of the time) to create moments of pause
+      if (Math.random() < 0.1) {
+        setPendingNavigation(fragment);
+        setShowContemplation(true);
+      } else {
+        performNavigation(fragment);
+      }
+    }
+  };
+
+  const navigateToFragment = (fragmentId) => {
+    initiateNavigation('fragment', fragmentId);
+  };
+
   const navigateToRandom = () => {
-    const randomFragment = getRandomFragment();
-    setCurrentFragment(randomFragment);
-    setHoveredFragment(null);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    initiateNavigation('random');
   };
 
   const navigateToNext = () => {
-    const nextFragment = getNextFragment(currentFragment.id);
-    if (nextFragment) {
-      setCurrentFragment(nextFragment);
-      setHoveredFragment(null);
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    }
+    initiateNavigation('next');
   };
 
   const navigateToPrevious = () => {
-    const previousFragment = getPreviousFragment(currentFragment.id);
-    if (previousFragment) {
-      setCurrentFragment(previousFragment);
-      setHoveredFragment(null);
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    }
+    initiateNavigation('previous');
   };
 
   if (!currentFragment) {
@@ -158,6 +181,33 @@ function App() {
           <p className="hover-preview-excerpt">
             {hoveredFragment.content.substring(0, PREVIEW_EXCERPT_LENGTH)}...
           </p>
+        </div>
+      )}
+
+      {/* Contemplation Modal - A moment to pause and consider */}
+      {showContemplation && pendingNavigation && (
+        <div className="contemplation-overlay" onClick={() => setShowContemplation(false)}>
+          <div className="contemplation-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="contemplation-content">
+              <p className="contemplation-question">Before you drift...</p>
+              <p className="contemplation-reflection">What draws you forward?</p>
+              <p className="contemplation-hint">The next fragment awaits: <em>{pendingNavigation.title}</em></p>
+              <div className="contemplation-actions">
+                <button 
+                  className="contemplation-btn contemplation-continue"
+                  onClick={() => performNavigation(pendingNavigation)}
+                >
+                  Continue
+                </button>
+                <button 
+                  className="contemplation-btn contemplation-stay"
+                  onClick={() => setShowContemplation(false)}
+                >
+                  Stay Here
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       )}
     </div>
