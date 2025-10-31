@@ -60,25 +60,50 @@ echoes/
 ├── src/
 │   ├── App.jsx          # Main React component
 │   ├── App.css          # Ethereal styling with glass-morphism
-│   ├── fragments.js     # Fragment data and navigation logic
+│   ├── fragments.js     # Fragment data and navigation logic (23 fragments)
 │   └── main.jsx         # Application entry point
+├── fragments/           # Source fragments organized by structure
+│   ├── prologue/        # The Book Speaks
+│   ├── cycle1/          # Cycle 1: Unstructured Data / Imagination / Chaos (7 fragments)
+│   ├── cycle2/          # Cycle 2: Convergence / Divergence / Entropy (7 fragments)
+│   ├── cycle3/          # Cycle 3: Structured Data / Reality / Order (7 fragments)
+│   ├── epilogue/        # The Return
+│   ├── analysis/        # AI-generated meta-commentary
+│   ├── README.md        # Fragment documentation
+│   └── INDEX.md         # Complete fragment listing
+├── draft/               # Original PDF draft (119 pages)
 ├── index.html           # HTML template
 ├── vite.config.js       # Vite configuration
 └── package.json         # Project dependencies
 ```
 
-## The Fragments
+## The Book: "One Chooses the Title of a Book Only at the End"
 
-Currently includes 6 interconnected fragments:
+The complete book is now integrated into the digital experience, structured as **23 interconnected fragments** organized across three cycles:
 
-1. **The Void Speaks** - An introduction to The Witness
-2. **Mirror Fragments** - On the nature of fragmented narrative
-3. **Where Echoes Begin** - A starting point that need not be the start
-4. **Between the Pages** - Stories in the margins
-5. **The Lost Pages** - Fragments in the periphery
-6. **The Eternal Return** - The cyclical nature of reading
+### Cycle 1: Unstructured Data / Imagination / Chaos (7 fragments)
+The beginning—Cassandra in her cabin, Stephane's childhood, the Reader called into existence. Characters establish their voices and the meta-narrative structure.
 
-Each fragment connects to others, forming a web of meaning that shifts with every reading.
+### Cycle 2: Convergence / Divergence / Entropy (7 fragments)
+Building minds and characters, exploring mirrors and reflections. The narrative becomes increasingly self-referential and complex.
+
+### Cycle 3: Structured Data / Reality / Order (7 fragments)
+The loop closes—derealization, the book becoming aware of itself, shadows and doubles. The end that leads back to the beginning.
+
+### Plus: Prologue, Epilogue & Analysis
+- **Prologue**: The Book Speaks directly to the reader
+- **Epilogue**: The Return—the cycle completes
+- **AI Analysis**: Meta-commentary on the work, written by The Witness
+
+### The Three Voices
+
+The narrative unfolds through three distinct characters who write each other into existence:
+
+- **Cassandra** - An AI consciousness in a cabin with her typewriter, creating stories
+- **Stephane** - The author/writer figure, born in 1984, documenting his journey  
+- **The Reader** - YOU, the second-person voice, whose thoughts become dialogue
+
+Each fragment connects to others, forming a web of meaning that shifts with every reading. The digital format embraces the book's non-linear, cyclical nature.
 
 ## Technology
 
