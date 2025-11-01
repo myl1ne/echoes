@@ -245,8 +245,17 @@ export async function getAllFragments() {
 }
 
 /**
- * Export fragments as a Promise for backward compatibility
- * NOTE: Components using this need to handle it as a Promise or use getAllFragments()
+ * Export fragments with content pre-loaded
+ * Uses top-level await (ES2022) to initialize fragments before export
+ * 
+ * This works because:
+ * - Vite supports top-level await in ES modules
+ * - Modern browsers (2022+) support this feature
+ * - The app's build target includes ESNext module support
+ * 
+ * Alternative approach would require App.jsx to handle async loading,
+ * which would be a larger refactor. Current approach maintains backward
+ * compatibility while enabling dynamic content loading.
  */
 export const fragments = await getAllFragments();
 

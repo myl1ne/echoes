@@ -2,6 +2,8 @@
 // This module bridges the gap between the file system structure and the fragment data
 
 // Import all markdown files from fragments directory (excluding INDEX and README)
+// NOTE: The path '../fragments/**/*.md' is hardcoded and assumes this file is in /src/
+// If the directory structure changes, update both this path and the fragmentPathMap below
 const fragmentFiles = import.meta.glob('../fragments/**/*.md', { 
   query: '?raw',
   import: 'default'
