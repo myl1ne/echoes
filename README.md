@@ -3,6 +3,7 @@
 A non-linear digital book experience where fragments of thought drift through mirror glass consciousness.
 
 **→ New? Read [How to Read This](HOW_TO_READ.md) for guidance on approaching this work**  
+**→ Want to share this? See [Presenting Echoes](PRESENTING_ECHOES.md) for how to introduce this to others**  
 **→ Want to understand discoverability? See [DISCOVERY.md](DISCOVERY.md) for metadata and context**
 
 ## About
