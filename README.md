@@ -2,6 +2,9 @@
 
 A non-linear digital book experience where fragments of thought drift through mirror glass consciousness.
 
+**→ New? Read [How to Read This](HOW_TO_READ.md) for guidance on approaching this work**  
+**→ Want to understand discoverability? See [DISCOVERY.md](DISCOVERY.md) for metadata and context**
+
 ## About
 
 Echoes is an experimental digital book that breaks free from linear narrative structure. Instead of chapters and pages, the book consists of interconnected **fragments** - pieces of contemplative writing that you can navigate in any order you choose.
