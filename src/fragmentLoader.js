@@ -42,7 +42,10 @@ const fragmentPathMap = {
   'stephane-last-letter': '../fragments/cycle3/07-stephane-last-letter.md',
   
   // Epilogue
-  'epilogue-main': '../fragments/epilogue/00-epilogue.md'
+  'epilogue-main': '../fragments/epilogue/00-epilogue.md',
+  
+  // Glyphs & Glitches
+  'glyphs-main': '../fragments/glyphs/00-glyphs-and-glitches.md'
 };
 
 // Cache for loaded fragments

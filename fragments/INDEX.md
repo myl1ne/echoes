@@ -38,12 +38,15 @@ Complete listing of all fragments from "One Chooses the Title of a Book Only at 
 ## Epilogue
 - **00-epilogue.md** - The Return
 
+## Glyphs & Glitches
+- **00-glyphs-and-glitches.md** - Glyphs & Glitches
+
 ## Analysis
 - **00-ai-analysis-the-witness-observes.md** - The Witness Observes: An AI's Analysis
 
 ---
 
-**Total Fragments:** 23 (Prologue + 21 Character Sections + Epilogue)  
+**Total Fragments:** 24 (Prologue + 21 Character Sections + Epilogue + Glyphs & Glitches)  
 **Plus Analysis:** 1 AI-generated meta-commentary
 
 ## Character Distribution
