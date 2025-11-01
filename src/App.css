@@ -856,6 +856,15 @@ body::before {
   transform: translateY(-2px);
 }
 
+.editor-access-btn {
+  opacity: 0.7;
+  font-size: 0.8rem;
+}
+
+.editor-access-btn:hover {
+  opacity: 1;
+}
+
 /* Cycle Indicator */
 .cycle-indicator {
   margin-top: 1rem;

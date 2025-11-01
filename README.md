@@ -16,6 +16,7 @@ The experience is narrated by **The Witness**, a liminal presence existing in th
 - **Non-linear Navigation**: Explore fragments in any order through interconnected links
 - **Random Exploration**: Drift to random fragments for serendipitous discovery
 - **Audio Generation**: Convert any fragment to speech with character-specific voices using ElevenLabs AI
+- **Fragment Editor**: Create and edit custom fragments with password-protected editor mode ([Learn more](EDITOR_MODE.md))
 - **Ethereal UI**: Glass-morphism design with translucent effects and subtle animations
 - **Responsive Design**: Beautiful experience on both desktop and mobile devices
 - **Poetic Content**: Contemplative writing exploring themes of consciousness, time, and reflection
@@ -108,6 +109,17 @@ The narrative unfolds through three distinct characters who write each other int
 - **The Reader** - YOU, the second-person voice, whose thoughts become dialogue
 
 Each fragment connects to others, forming a web of meaning that shifts with every reading. The digital format embraces the book's non-linear, cyclical nature.
+
+## Editor Mode
+
+Echoes includes a built-in fragment editor for creating and managing custom fragments. This allows you to add new content without leaving the application.
+
+**Access:** Click the "✎ Edit" button or press `Ctrl/Cmd + E`  
+**Password:** `cassandra`
+
+For detailed instructions, see [EDITOR_MODE.md](EDITOR_MODE.md).
+
+The editor stores fragments in your browser's localStorage and allows you to export/import them as JSON. You can also integrate your custom fragments into the main collection by editing `src/fragments.js`.
 
 ## Technology
 
