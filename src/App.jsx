@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import './App.css';
 import { fragments, getFragmentById, getConnectedFragments, getRandomFragment, getNextFragment, getPreviousFragment, getCycleInfo, getCharacterFromId } from './fragments';
 import ConstellationView from './ConstellationView';
+import EditorMode from './EditorMode';
 import { generateAudio, playAudioBlob, downloadAudio } from './audioService';
 
 const PREVIEW_EXCERPT_LENGTH = 150;
@@ -22,11 +23,25 @@ function App() {
   const [currentAudio, setCurrentAudio] = useState(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [audioError, setAudioError] = useState(null);
+  const [showEditor, setShowEditor] = useState(false);
 
   // Initialize with a random fragment
   useEffect(() => {
     const startFragment = getRandomFragment();
     setCurrentFragment(startFragment);
+  }, []);
+
+  // Keyboard shortcut for editor mode (Ctrl/Cmd + E)
+  useEffect(() => {
+    const handleKeyPress = (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'e') {
+        e.preventDefault();
+        setShowEditor(prev => !prev);
+      }
+    };
+    
+    window.addEventListener('keydown', handleKeyPress);
+    return () => window.removeEventListener('keydown', handleKeyPress);
   }, []);
 
   // Update connected fragments when current fragment changes
@@ -213,6 +228,13 @@ function App() {
             title="View reading history"
           >
             ⟲ History ({readingHistory.length})
+          </button>
+          <button 
+            className="toolbar-btn editor-access-btn" 
+            onClick={() => setShowEditor(true)}
+            title="Editor Mode (Ctrl/Cmd + E)"
+          >
+            ✎ Edit
           </button>
         </div>
 
@@ -405,6 +427,17 @@ function App() {
           currentFragmentId={currentFragment.id}
           onNavigate={navigateToFragment}
           onClose={() => setShowConstellation(false)}
+        />
+      )}
+
+      {/* Editor Mode */}
+      {showEditor && (
+        <EditorMode 
+          onClose={() => setShowEditor(false)}
+          onFragmentSaved={(fragment) => {
+            // Could add custom fragments to the navigation in the future
+            console.log('Fragment saved:', fragment);
+          }}
         />
       )}
     </div>
