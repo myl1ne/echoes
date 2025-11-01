@@ -64,7 +64,8 @@ function EchoBird() {
   useEffect(() => {
     const stored = localStorage.getItem('echo-visits');
     const count = stored ? parseInt(stored, 10) : 0;
-    setVisitCount(count);
+    // Validate that count is a valid number
+    setVisitCount(isNaN(count) ? 0 : count);
   }, []);
 
   const handleClick = () => {
@@ -84,7 +85,14 @@ function EchoBird() {
       const availableWhispers = echoWhispers.filter(
         w => w.id !== 'first-visit' && w.id !== 'returning'
       );
-      whisper = availableWhispers[Math.floor(Math.random() * availableWhispers.length)];
+      whisper = availableWhispers.length > 0
+        ? availableWhispers[Math.floor(Math.random() * availableWhispers.length)]
+        : echoWhispers[0]; // Fallback to first whisper if filter fails
+    }
+
+    // Ensure whisper exists, fallback to first one if not found
+    if (!whisper) {
+      whisper = echoWhispers[0];
     }
 
     setCurrentWhisper(whisper);
