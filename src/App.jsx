@@ -3,6 +3,7 @@ import './App.css';
 import { fragments, getFragmentById, getConnectedFragments, getRandomFragment, getNextFragment, getPreviousFragment, getCycleInfo, getCharacterFromId } from './fragments';
 import ConstellationView from './ConstellationView';
 import EditorMode from './EditorMode';
+import EchoBird from './EchoBird';
 import { generateAudio, playAudioBlob, downloadAudio } from './audioService';
 
 const PREVIEW_EXCERPT_LENGTH = 150;
@@ -445,6 +446,9 @@ function App() {
           }}
         />
       )}
+
+      {/* Echo Bird - Phase 1: The Silent Witness */}
+      <EchoBird />
     </div>
   );
 }

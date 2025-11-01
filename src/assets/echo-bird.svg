@@ -1,0 +1,160 @@
+<!-- Echo Bird Icon - Minimal SVG for Echoes -->
+<!-- Place in: /src/assets/ or inline in React component -->
+<!-- Designed to match glass-morphism aesthetic -->
+
+<svg 
+  width="40" 
+  height="40" 
+  viewBox="0 0 40 40" 
+  fill="none" 
+  xmlns="http://www.w3.org/2000/svg"
+  class="echo-bird"
+>
+  <!-- Bird silhouette - simple, elegant, liminal -->
+  
+  <!-- Body -->
+  <ellipse 
+    cx="20" 
+    cy="24" 
+    rx="8" 
+    ry="10" 
+    fill="currentColor" 
+    opacity="0.7"
+  />
+  
+  <!-- Head -->
+  <circle 
+    cx="20" 
+    cy="14" 
+    r="6" 
+    fill="currentColor" 
+    opacity="0.7"
+  />
+  
+  <!-- Beak -->
+  <path 
+    d="M 26 14 L 30 13 L 26 15 Z" 
+    fill="currentColor" 
+    opacity="0.6"
+  />
+  
+  <!-- Eye (small dot) -->
+  <circle 
+    cx="22" 
+    cy="13" 
+    r="1.5" 
+    fill="rgba(255, 255, 255, 0.9)"
+  />
+  
+  <!-- Wing (folded) -->
+  <path 
+    d="M 15 22 Q 10 24 12 28 L 15 26 Z" 
+    fill="currentColor" 
+    opacity="0.5"
+  />
+  
+  <!-- Tail feathers -->
+  <path 
+    d="M 18 32 L 15 38 M 20 32 L 20 38 M 22 32 L 25 38" 
+    stroke="currentColor" 
+    stroke-width="1.5" 
+    stroke-linecap="round" 
+    opacity="0.6"
+  />
+  
+  <!-- Subtle glow effect (optional) -->
+  <circle 
+    cx="20" 
+    cy="20" 
+    r="18" 
+    fill="none" 
+    stroke="currentColor" 
+    stroke-width="0.5" 
+    opacity="0.2"
+  />
+</svg>
+
+<!-- 
+CSS to add breathing animation:
+
+.echo-bird {
+  position: fixed;
+  bottom: 2rem;
+  right: 2rem;
+  width: 40px;
+  height: 40px;
+  color: rgba(255, 255, 255, 0.8);
+  filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.3));
+  cursor: pointer;
+  transition: all 0.3s ease;
+  animation: echo-breathe 4s ease-in-out infinite;
+}
+
+.echo-bird:hover {
+  color: rgba(255, 255, 255, 1);
+  transform: scale(1.1);
+  filter: drop-shadow(0 6px 16px rgba(0, 0, 0, 0.4));
+}
+
+@keyframes echo-breathe {
+  0%, 100% { 
+    transform: scale(1) translateY(0); 
+    opacity: 0.7;
+  }
+  50% { 
+    transform: scale(1.03) translateY(-2px); 
+    opacity: 0.9;
+  }
+}
+
+/* Optional: Gentle head tilt animation */
+@keyframes echo-tilt {
+  0%, 100% { transform: rotate(0deg); }
+  50% { transform: rotate(3deg); }
+}
+
+.echo-bird circle:nth-child(2) {
+  animation: echo-tilt 6s ease-in-out infinite;
+  transform-origin: 20px 14px;
+}
+-->
+
+<!-- 
+React component example:
+
+import { useState } from 'react';
+import './EchoBird.css';
+
+function EchoBird({ onClick }) {
+  const [isHovered, setIsHovered] = useState(false);
+  
+  return (
+    <div 
+      className="echo-bird-container"
+      onClick={onClick}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+      title="Echo is here. Echo remembers."
+    >
+      <svg 
+        width="40" 
+        height="40" 
+        viewBox="0 0 40 40" 
+        fill="none" 
+        xmlns="http://www.w3.org/2000/svg"
+        className="echo-bird"
+      >
+        {/* SVG content here */}
+      </svg>
+      
+      {isHovered && (
+        <div className="echo-whisper">
+          Echo watches
+        </div>
+      )}
+    </div>
+  );
+}
+
+export default EchoBird;
+-->
