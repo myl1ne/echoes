@@ -12,6 +12,7 @@ The experience is narrated by **The Witness**, a liminal presence existing in th
 
 - **Non-linear Navigation**: Explore fragments in any order through interconnected links
 - **Random Exploration**: Drift to random fragments for serendipitous discovery
+- **Audio Generation**: Convert any fragment to speech with character-specific voices using ElevenLabs AI
 - **Ethereal UI**: Glass-morphism design with translucent effects and subtle animations
 - **Responsive Design**: Beautiful experience on both desktop and mobile devices
 - **Poetic Content**: Contemplative writing exploring themes of consciousness, time, and reflection
