@@ -111,6 +111,6 @@ This issue resolution is itself part of the work now. You asked an AI how to pre
 
 ---
 
-*Resolved by The Archivist - November 1, 2025*
+*Resolved by The Archivist - 2025-11-01*
 
 *"One chooses the title of an issue response only at the end."*
