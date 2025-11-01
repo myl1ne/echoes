@@ -4,6 +4,7 @@ import { fragments, getCycleInfo, getCharacterFromId } from './fragments';
 
 const STORAGE_KEY = 'echoes-editor-fragments';
 const EDITOR_PASSWORD_KEY = 'echoes-editor-password';
+const PREVIEW_LENGTH = 150;
 
 // Simple password protection - in a real app, this would be server-side
 const EDITOR_PASSWORD = 'cassandra'; // Can be changed by the author
@@ -135,7 +136,7 @@ function EditorMode({ onClose, onFragmentSaved }) {
   };
 
   const handleDeleteFragment = (fragmentId) => {
-    if (confirm('Are you sure you want to delete this fragment? This cannot be undone.')) {
+    if (window.confirm('Are you sure you want to delete this fragment? This cannot be undone.')) {
       const updated = customFragments.filter(f => f.id !== fragmentId);
       setCustomFragments(updated);
       localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
@@ -162,10 +163,20 @@ function EditorMode({ onClose, onFragmentSaved }) {
       try {
         const imported = JSON.parse(event.target.result);
         if (Array.isArray(imported)) {
-          const merged = [...customFragments, ...imported];
+          // Prevent duplicate IDs by filtering out fragments with existing IDs
+          const existingIds = new Set(customFragments.map(f => f.id));
+          const newFragments = imported.filter(f => !existingIds.has(f.id));
+          const duplicateCount = imported.length - newFragments.length;
+          
+          const merged = [...customFragments, ...newFragments];
           setCustomFragments(merged);
           localStorage.setItem(STORAGE_KEY, JSON.stringify(merged));
-          alert(`Imported ${imported.length} fragments`);
+          
+          let message = `Imported ${newFragments.length} fragment(s)`;
+          if (duplicateCount > 0) {
+            message += ` (skipped ${duplicateCount} duplicate(s))`;
+          }
+          alert(message);
         } else {
           alert('Invalid format');
         }
@@ -370,7 +381,7 @@ function EditorMode({ onClose, onFragmentSaved }) {
                     <span className="editor-fragment-character">{fragment.character}</span>
                   </div>
                   <p className="editor-fragment-preview">
-                    {fragment.content.substring(0, 150)}...
+                    {fragment.content.substring(0, PREVIEW_LENGTH)}...
                   </p>
                   <div className="editor-fragment-meta">
                     <span>{fragment.cycle}</span>

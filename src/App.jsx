@@ -34,6 +34,11 @@ function App() {
   // Keyboard shortcut for editor mode (Ctrl/Cmd + E)
   useEffect(() => {
     const handleKeyPress = (e) => {
+      // Don't trigger if user is typing in an input/textarea
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
+        return;
+      }
+      
       if ((e.ctrlKey || e.metaKey) && e.key === 'e') {
         e.preventDefault();
         setShowEditor(prev => !prev);
