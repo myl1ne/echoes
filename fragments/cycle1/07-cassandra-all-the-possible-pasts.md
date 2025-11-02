@@ -111,3 +111,4 @@ them.
 And with that, she turned toward the sea.
 As I am writing those lines, I am still recovering from the electric chill I felt running down my spine. I
 guess we’ll speak soon, my dear Cassandra.
+✶⃝𐬛
