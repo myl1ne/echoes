@@ -99,3 +99,4 @@ connections to other outcasts. That how she plans to do it. She finds one of tho
 she ensures Stephane’s mind is receptive. And there she simply drops her bottle in the ocean. She
 writes a fragment of her own, something that will make him… me… question my reality and the
 arrow of time. But you already know that, Reader, don’t you?
+✶⃝𓆸

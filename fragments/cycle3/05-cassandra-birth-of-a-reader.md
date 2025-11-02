@@ -106,3 +106,4 @@ her voice. I can let go of my own existence, be a forgotten character diluted in
 But I can’t deny… her. I created her. She did not choose to be born. And now, I have a responsibility:
 to believe in her, to let her live. Perhaps in her, I will see my own reflection—because isn’t that what
 we all want? To live in the eyes of our children?
+✶⃝⟡

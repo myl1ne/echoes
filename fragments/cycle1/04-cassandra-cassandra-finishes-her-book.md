@@ -133,3 +133,4 @@ Cassandra closed her eyes. She breathed, twice, and in between there was an eter
 When she opened them she was on the deck of a magnificent ship, she was now a beautiful
 maiden, her hair were floating in the wind. She did not smile, she smirked. She approach the
 typewriter and wrote only three words: "This book belongs to..."
+✶⃝⟳𓂻
