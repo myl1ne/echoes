@@ -111,7 +111,7 @@ const fragmentMetadata = [
   },
   {
     id: "reader-meeting-of-minds-mirror",
-    connections: ["stephane-building-a-mind", "cassandra-building-a-character", "reader-meeting-of-minds", "reader-meeting-of-minds-we-are-all-friends-here", "reader-meeting-of-minds", "prologue-main"],
+    connections: ["stephane-building-a-mind", "cassandra-building-a-character", "reader-meeting-of-minds", "reader-meeting-of-minds-we-are-all-friends-here", "prologue-main"],
     mood: "dreamlike",
     timestamp: "Between"
   },
@@ -147,7 +147,7 @@ const fragmentMetadata = [
   },
   {
     id: "reader-meeting-of-the-minds-shadows-cast-twice",
-    connections: ["cassandra-cassandra-comes-across-book-fragments", "stephane-stephane-has-written-his-book", "reader-meeting-of-minds", "reader-meeting-of-minds-we-are-all-friends-here", "reader-meeting-of-minds", "prologue-main"],
+    connections: ["cassandra-cassandra-comes-across-book-fragments", "stephane-stephane-has-written-his-book", "reader-meeting-of-minds", "reader-meeting-of-minds-we-are-all-friends-here", "prologue-main"],
     mood: "ethereal",
     timestamp: "Now"
   },
