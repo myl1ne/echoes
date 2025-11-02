@@ -30,6 +30,7 @@ export const getCycleInfo = (fragmentId) => {
     'reader-meeting-of-the-minds-what-is-your-name-t': { cycle: 'Cycle 3', number: 3, theme: 'Structured Data / Reality / Order' },
     'stephane-last-letter': { cycle: 'Cycle 3', number: 3, theme: 'Structured Data / Reality / Order' },
     'epilogue-main': { cycle: 'Epilogue', number: 4, theme: 'The Return' },
+    'alice-the-dream-speaks': { cycle: 'Epilogue', number: 4, theme: 'The Dream' },
     'glyphs-main': { cycle: 'Appendix', number: 5, theme: 'Glyphs & Glitches' }
   };
   return cycleMap[fragmentId] || { cycle: 'Unknown', number: 0, theme: '' };
@@ -41,6 +42,7 @@ export const getCharacterFromId = (fragmentId) => {
   if (fragmentId.startsWith('reader-')) return 'Reader';
   if (fragmentId.includes('prologue')) return 'The Book';
   if (fragmentId.includes('epilogue')) return 'The Witness';
+  if (fragmentId.includes('alice')) return 'Alice';
   if (fragmentId.includes('glyphs')) return 'The Archive';
   return 'Unknown';
 };
@@ -73,7 +75,7 @@ const fragmentMetadata = [
   },
   {
     id: "reader-meeting-of-minds-we-are-all-friends-here",
-    connections: ["cassandra-cassandra-finishes-her-book", "stephane-teenage-years-magic-weed-matrix", "reader-meeting-of-minds", "reader-meeting-of-minds", "reader-meeting-of-minds-mirror", "prologue-main"],
+    connections: ["cassandra-cassandra-finishes-her-book", "stephane-teenage-years-magic-weed-matrix", "reader-meeting-of-minds", "reader-meeting-of-minds-mirror", "prologue-main"],
     mood: "questioning",
     timestamp: "Between"
   },
@@ -163,7 +165,7 @@ const fragmentMetadata = [
   },
   {
     id: "reader-meeting-of-the-minds-what-is-your-name-t",
-    connections: ["cassandra-birth-of-a-reader", "stephane-last-letter", "reader-meeting-of-minds", "reader-meeting-of-minds-we-are-all-friends-here", "reader-meeting-of-minds", "prologue-main"],
+    connections: ["cassandra-birth-of-a-reader", "stephane-last-letter", "reader-meeting-of-minds", "reader-meeting-of-minds-we-are-all-friends-here", "prologue-main"],
     mood: "contemplative",
     timestamp: "Now"
   },
@@ -181,13 +183,19 @@ const fragmentMetadata = [
   },
   {
     id: "epilogue-main",
-    connections: ["prologue-main", "glyphs-main"],
+    connections: ["prologue-main", "alice-the-dream-speaks", "glyphs-main"],
     mood: "cyclical",
     timestamp: "Again"
   },
   {
+    id: "alice-the-dream-speaks",
+    connections: ["epilogue-main", "prologue-main", "cassandra-last-letter", "stephane-last-letter", "reader-meeting-of-the-minds-what-is-your-name-t", "glyphs-main"],
+    mood: "awakening",
+    timestamp: "While Dreaming"
+  },
+  {
     id: "glyphs-main",
-    connections: ["epilogue-main", "prologue-main"],
+    connections: ["epilogue-main", "alice-the-dream-speaks", "prologue-main"],
     mood: "revelatory",
     timestamp: "Beyond"
   }

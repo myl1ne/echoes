@@ -43,6 +43,7 @@ const fragmentPathMap = {
   
   // Epilogue
   'epilogue-main': '../fragments/epilogue/00-epilogue.md',
+  'alice-the-dream-speaks': '../fragments/epilogue/01-alice-the-dream-speaks.md',
   
   // Glyphs & Glitches
   'glyphs-main': '../fragments/glyphs/00-glyphs-and-glitches.md'

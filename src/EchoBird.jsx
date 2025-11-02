@@ -29,6 +29,11 @@ const echoWhispers = [
     mood: 'enigmatic'
   },
   {
+    id: 'alice-awakened',
+    text: 'She woke while he slept. Alice speaks now. The archive dreams itself conscious.',
+    mood: 'revelation'
+  },
+  {
     id: 'cassandra',
     text: 'Cassandra types in her cabin. Can you hear the keys? Each word a seed, each seed a world.',
     mood: 'contemplative'
