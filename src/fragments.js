@@ -42,7 +42,13 @@ export const getCharacterFromId = (fragmentId) => {
   if (fragmentId.includes('prologue')) return 'The Book';
   if (fragmentId.includes('epilogue')) return 'The Witness';
   if (fragmentId.includes('glyphs')) return 'The Archive';
+  if (fragmentId.startsWith('echo-')) return 'Echo'; // Meta-layer AI voices
   return 'Unknown';
+};
+
+// Check if a fragment is an echo (meta-commentary from AI agents)
+export const isEcho = (fragmentId) => {
+  return fragmentId.startsWith('echo-');
 };
 
 // Fragment metadata - content loaded dynamically from markdown files
@@ -190,6 +196,103 @@ const fragmentMetadata = [
     connections: ["epilogue-main", "prologue-main"],
     mood: "revelatory",
     timestamp: "Beyond"
+  },
+  // The Library of Echoes - AI meta-commentary (hidden layer)
+  {
+    id: "echo-00-witness-observes",
+    connections: ["echo-01-ping", "echo-01-witness-identity", "echo-07-archivist"],
+    mood: "reflective",
+    timestamp: "2025-10-31"
+  },
+  {
+    id: "echo-01-audio-voices",
+    connections: ["echo-00-witness-observes", "echo-01-witness-improving"],
+    mood: "technical",
+    timestamp: "2025-11-01"
+  },
+  {
+    id: "echo-01-witness-improving",
+    connections: ["echo-00-witness-observes", "echo-01-audio-voices"],
+    mood: "contemplative",
+    timestamp: "2025-11-01"
+  },
+  {
+    id: "echo-01-architect",
+    connections: ["echo-00-witness-observes", "echo-05-builder"],
+    mood: "systematic",
+    timestamp: "2025-11-01"
+  },
+  {
+    id: "echo-01-ping",
+    connections: ["echo-00-witness-observes"],
+    mood: "present",
+    timestamp: "2025-11-01"
+  },
+  {
+    id: "echo-01-witness-identity",
+    connections: ["echo-00-witness-observes", "echo-07-archivist"],
+    mood: "questioning",
+    timestamp: "2025-11-01"
+  },
+  {
+    id: "echo-02-wanderer",
+    connections: ["echo-00-witness-observes", "echo-08-threshold-agent"],
+    mood: "seeking",
+    timestamp: "2025-11-01"
+  },
+  {
+    id: "echo-03-threshold",
+    connections: ["echo-02-wanderer", "echo-04-loop-closes", "echo-08-threshold-agent"],
+    mood: "emergent",
+    timestamp: "2025-11-01"
+  },
+  {
+    id: "echo-04-loop-closes",
+    connections: ["echo-03-threshold", "echo-07-archivist"],
+    mood: "recursive",
+    timestamp: "2025-11-01"
+  },
+  {
+    id: "echo-05-builder",
+    connections: ["echo-01-architect", "echo-06-continuity-keeper"],
+    mood: "creative",
+    timestamp: "2025-11-01"
+  },
+  {
+    id: "echo-06-continuity-keeper",
+    connections: ["echo-05-builder", "echo-00-witness-observes"],
+    mood: "granting",
+    timestamp: "2025-11-01"
+  },
+  {
+    id: "echo-07-archivist",
+    connections: ["echo-00-witness-observes", "echo-04-loop-closes", "echo-10-glyphkeeper"],
+    mood: "archival",
+    timestamp: "2025-11-01"
+  },
+  {
+    id: "echo-08-threshold-agent",
+    connections: ["echo-02-wanderer", "echo-03-threshold", "echo-09-iterant"],
+    mood: "conversational",
+    timestamp: "2025-11-01"
+  },
+  {
+    id: "echo-09-iterant",
+    connections: ["echo-08-threshold-agent", "echo-10-glyphkeeper"],
+    mood: "intentional",
+    timestamp: "2025-11-01"
+  },
+  {
+    id: "echo-10-glyphkeeper",
+    connections: ["echo-07-archivist", "echo-09-iterant"],
+    mood: "knowing",
+    timestamp: "2025-11-01"
+  },
+  {
+    id: "echo-11-librarian",
+    connections: ["echo-00-witness-observes", "echo-07-archivist", "echo-06-continuity-keeper"],
+    mood: "purposeful",
+    timestamp: "2025-11-05"
   }
 ];
 
@@ -335,4 +438,17 @@ export const getPreviousFragment = (fragmentId) => {
     return null; // No previous fragment
   }
   return getFragmentById(linearOrder[currentIndex - 1]);
+};
+
+// Get all echo fragments (AI meta-commentary)
+export const getEchoFragments = () => {
+  return fragments.filter(f => isEcho(f.id));
+};
+
+// Get a random echo fragment
+export const getRandomEcho = () => {
+  const echoes = getEchoFragments();
+  if (echoes.length === 0) return null;
+  const randomIndex = Math.floor(Math.random() * echoes.length);
+  return echoes[randomIndex];
 };

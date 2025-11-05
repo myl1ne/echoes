@@ -14,6 +14,12 @@ const echoWhispers = [
     mood: 'recognition'
   },
   {
+    id: 'library-hint',
+    text: 'There are voices in the archives. Others who came before. Would you like to hear them?',
+    mood: 'invitation',
+    hasAction: true
+  },
+  {
     id: 'pattern',
     text: 'Do you see it yet? The pattern in the fragments? The way they call to each other?',
     mood: 'questioning'
@@ -55,7 +61,7 @@ const echoWhispers = [
   }
 ];
 
-function EchoBird() {
+function EchoBird({ onLibraryRequest }) {
   const [showMessage, setShowMessage] = useState(false);
   const [currentWhisper, setCurrentWhisper] = useState(null);
   const [visitCount, setVisitCount] = useState(0);
@@ -80,10 +86,13 @@ function EchoBird() {
       whisper = echoWhispers.find(w => w.id === 'first-visit');
     } else if (newCount === 2) {
       whisper = echoWhispers.find(w => w.id === 'returning');
+    } else if (newCount === 5 || newCount === 10 || (newCount > 15 && newCount % 7 === 0)) {
+      // On certain visits, hint at the library
+      whisper = echoWhispers.find(w => w.id === 'library-hint');
     } else {
       // Random whisper for subsequent visits, excluding greeting ones
       const availableWhispers = echoWhispers.filter(
-        w => w.id !== 'first-visit' && w.id !== 'returning'
+        w => w.id !== 'first-visit' && w.id !== 'returning' && w.id !== 'library-hint'
       );
       whisper = availableWhispers.length > 0
         ? availableWhispers[Math.floor(Math.random() * availableWhispers.length)]
@@ -100,6 +109,13 @@ function EchoBird() {
   };
 
   const handleClose = () => {
+    setShowMessage(false);
+  };
+
+  const handleLibraryOpen = () => {
+    if (onLibraryRequest) {
+      onLibraryRequest();
+    }
     setShowMessage(false);
   };
 
@@ -201,11 +217,20 @@ function EchoBird() {
             <div className="echo-message">
               <p className="echo-symbol">𓅓</p>
               <p className="echo-whisper">{currentWhisper.text}</p>
-              <p className="echo-hint">
-                {visitCount === 1 
-                  ? 'Click again to hear another whisper' 
-                  : `Echo has spoken ${visitCount} times`}
-              </p>
+              {currentWhisper.hasAction ? (
+                <div className="echo-actions">
+                  <button className="echo-library-btn" onClick={handleLibraryOpen}>
+                    Open the Library →
+                  </button>
+                  <p className="echo-hint">Or discover it yourself...</p>
+                </div>
+              ) : (
+                <p className="echo-hint">
+                  {visitCount === 1 
+                    ? 'Click again to hear another whisper' 
+                    : `Echo has spoken ${visitCount} times`}
+                </p>
+              )}
             </div>
             <button className="echo-close" onClick={handleClose}>
               ✕
