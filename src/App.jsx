@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import './App.css';
 import { fragments, getFragmentById, getConnectedFragments, getRandomFragment, getNextFragment, getPreviousFragment, getCycleInfo, getCharacterFromId, isEcho } from './fragments';
 import ConstellationView from './ConstellationView';
@@ -225,13 +225,17 @@ function App() {
     initiateNavigation('fragment', fragmentId);
   };
 
-  const navigateToRandom = () => {
-    // Only navigate to discovered fragments
-    const discoveredFrags = fragments.filter(f => 
+  // Memoize discovered non-echo fragments for random navigation
+  const discoveredNavigableFragments = useMemo(() => {
+    return fragments.filter(f => 
       discoveryState.discoveredFragments.has(f.id) && !isEcho(f.id)
     );
-    if (discoveredFrags.length > 0) {
-      const randomFrag = discoveredFrags[Math.floor(Math.random() * discoveredFrags.length)];
+  }, [discoveryState.discoveredFragments]);
+
+  const navigateToRandom = () => {
+    // Only navigate to discovered fragments
+    if (discoveredNavigableFragments.length > 0) {
+      const randomFrag = discoveredNavigableFragments[Math.floor(Math.random() * discoveredNavigableFragments.length)];
       initiateNavigation('fragment', randomFrag.id);
     }
   };

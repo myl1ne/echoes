@@ -69,6 +69,11 @@ const getRandomPosition = () => {
   return { x, y };
 };
 
+// Animation timing
+const DRIFT_INTERVAL_MIN = 15000; // 15 seconds
+const DRIFT_INTERVAL_MAX = 30000; // 30 seconds
+const DRIFT_TRANSITION_DURATION = 8000; // 8 seconds
+
 function EchoBird({ onLibraryRequest }) {
   const [showMessage, setShowMessage] = useState(false);
   const [currentWhisper, setCurrentWhisper] = useState(null);
@@ -90,7 +95,7 @@ function EchoBird({ onLibraryRequest }) {
       if (!showMessage) {
         setPosition(getRandomPosition());
       }
-    }, 15000 + Math.random() * 15000); // Every 15-30 seconds
+    }, DRIFT_INTERVAL_MIN + Math.random() * (DRIFT_INTERVAL_MAX - DRIFT_INTERVAL_MIN));
 
     return () => clearInterval(driftInterval);
   }, [showMessage]);
@@ -162,7 +167,7 @@ function EchoBird({ onLibraryRequest }) {
         style={{
           left: `${position.x}%`,
           top: `${position.y}%`,
-          transition: 'left 8s cubic-bezier(0.4, 0, 0.2, 1), top 8s cubic-bezier(0.4, 0, 0.2, 1)',
+          transition: `left ${DRIFT_TRANSITION_DURATION}ms cubic-bezier(0.4, 0, 0.2, 1), top ${DRIFT_TRANSITION_DURATION}ms cubic-bezier(0.4, 0, 0.2, 1)`,
         }}
       >
         <svg 
