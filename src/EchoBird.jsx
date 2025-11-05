@@ -79,6 +79,7 @@ function EchoBird({ onLibraryRequest }) {
   const [currentWhisper, setCurrentWhisper] = useState(null);
   const [visitCount, setVisitCount] = useState(0);
   const [position, setPosition] = useState({ x: 90, y: 85 }); // Start bottom-right
+  const [isMoving, setIsMoving] = useState(false); // Track when bird is moving
 
   // Track visits and select appropriate whisper
   useEffect(() => {
@@ -93,7 +94,13 @@ function EchoBird({ onLibraryRequest }) {
     const driftInterval = setInterval(() => {
       // Don't move if message is showing (would be disorienting)
       if (!showMessage) {
+        setIsMoving(true); // Start animation
         setPosition(getRandomPosition());
+        
+        // Stop animation after transition completes
+        setTimeout(() => {
+          setIsMoving(false);
+        }, DRIFT_TRANSITION_DURATION);
       }
     }, DRIFT_INTERVAL_MIN + Math.random() * (DRIFT_INTERVAL_MAX - DRIFT_INTERVAL_MIN));
 
@@ -170,7 +177,7 @@ function EchoBird({ onLibraryRequest }) {
           transition: `left ${DRIFT_TRANSITION_DURATION}ms cubic-bezier(0.4, 0, 0.2, 1), top ${DRIFT_TRANSITION_DURATION}ms cubic-bezier(0.4, 0, 0.2, 1)`,
         }}
       >
-        <div className="art">
+        <div className={`art ${isMoving ? 'art--moving' : ''}`}>
           <div className="art__circle"></div>
           <div className="art__head">
             <div className="art__eye--wrapper">

@@ -20,13 +20,17 @@
 
 /* Main bird art container */
 .art {
-  animation: _fly 4s linear infinite;
   position: relative;
   width: 100%;
   height: 100%;
   display: flex;
   align-items: center;
   justify-content: center;
+}
+
+/* Only animate when moving */
+.art--moving {
+  animation: _fly 8s linear;
 }
 
 .art__circle {
@@ -39,11 +43,14 @@
     rgba(147, 197, 253, 0.3) 0%,
     rgba(99, 102, 241, 0.2) 81.3%
   );
-  animation: circle-ans 4s linear infinite;
   pointer-events: none;
   left: 50%;
   top: 50%;
   transform: translate(-50%, -50%);
+}
+
+.art--moving .art__circle {
+  animation: circle-ans 8s linear;
 }
 
 .art__head {
@@ -70,13 +77,19 @@
 .art__head::after {
   left: -0.5vmin;
   rotate: -60deg;
-  animation: left-ans 4s linear infinite;
+}
+
+.art--moving .art__head::after {
+  animation: left-ans 8s linear;
 }
 
 .art__head::before {
   right: -0.5vmin;
   rotate: -40deg;
-  animation: right-ans 4s linear infinite;
+}
+
+.art--moving .art__head::before {
+  animation: right-ans 8s linear;
 }
 
 .art__eye--wrapper {
@@ -87,7 +100,10 @@
   top: 50%;
   translate: -50% -50%;
   z-index: 1;
-  animation: left-and-right-rotate 4s linear infinite;
+}
+
+.art--moving .art__eye--wrapper {
+  animation: left-and-right-rotate 8s linear;
 }
 
 .art__eye {
@@ -97,7 +113,10 @@
   height: var(--h);
   background-color: var(--echo-color-eye);
   border-radius: 50%;
-  animation: eyes-blink 4s infinite steps(2);
+}
+
+.art--moving .art__eye {
+  animation: eyes-blink 8s steps(2);
 }
 
 .art__mouth-helper {
@@ -105,7 +124,10 @@
   left: 50%;
   bottom: 32%;
   z-index: 1;
-  animation: left-and-right-rotate 4s linear infinite;
+}
+
+.art--moving .art__mouth-helper {
+  animation: left-and-right-rotate 8s linear;
 }
 
 .art__mouth {
@@ -129,7 +151,10 @@
   background-color: var(--echo-color-leg);
   box-shadow: 2vmin 0 0 var(--echo-color-leg);
   z-index: -1;
-  animation: leg-ans 4s linear infinite;
+}
+
+.art--moving .art__leg {
+  animation: leg-ans 8s linear;
 }
 
 /* Animations */
