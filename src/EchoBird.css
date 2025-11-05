@@ -61,6 +61,13 @@
   background-color: var(--echo-color-primary);
   position: relative;
   box-shadow: 0 4px 12px rgba(147, 197, 253, 0.4);
+  /* Subtle breathing animation when idle */
+  animation: idle-breathe 3s ease-in-out infinite;
+}
+
+.art--moving .art__head {
+  /* Disable breathing when moving to avoid conflict */
+  animation: none;
 }
 
 .art__head::after,
@@ -113,9 +120,12 @@
   height: var(--h);
   background-color: var(--echo-color-eye);
   border-radius: 50%;
+  /* Gentle blinking even when idle */
+  animation: eyes-blink-idle 4s infinite;
 }
 
 .art--moving .art__eye {
+  /* More active blinking when moving */
   animation: eyes-blink 8s steps(2);
 }
 
@@ -158,6 +168,34 @@
 }
 
 /* Animations */
+
+/* Idle animation - gentle blinking */
+@keyframes eyes-blink-idle {
+  0%, 92% {
+    transform: scaleY(1);
+  }
+  
+  94%, 96% {
+    transform: scaleY(0.1);
+  }
+  
+  98%, 100% {
+    transform: scaleY(1);
+  }
+}
+
+/* Gentle breathing animation for idle state */
+@keyframes idle-breathe {
+  0%, 100% {
+    transform: scale(1);
+  }
+  
+  50% {
+    transform: scale(1.02);
+  }
+}
+
+/* Active blinking when moving */
 @keyframes eyes-blink {
   0%,
   49% {
