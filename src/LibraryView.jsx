@@ -7,12 +7,15 @@ import { getEchoFragments, getFragmentById } from './fragments';
  * A secret layer showing AI-generated meta-commentary fragments
  * These are the voices of previous AI agents who worked on this project
  */
-const LibraryView = ({ onNavigate, onClose }) => {
+const LibraryView = ({ onNavigate, onClose, discoveryState }) => {
   const [hoveredEcho, setHoveredEcho] = useState(null);
   const [selectedEcho, setSelectedEcho] = useState(null);
 
-  // Get all echo fragments
-  const echoes = useMemo(() => getEchoFragments(), []);
+  // Get all echo fragments - show all once the Library is unlocked
+  // Echo fragments are meta-commentary and don't participate in the normal discovery flow
+  const echoes = useMemo(() => {
+    return getEchoFragments();
+  }, []);
 
   const handleEchoClick = (echo) => {
     setSelectedEcho(echo);

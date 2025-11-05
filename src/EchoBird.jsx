@@ -61,10 +61,24 @@ const echoWhispers = [
   }
 ];
 
+// Possible positions for Echo to drift to (keeping away from edges and header)
+const getRandomPosition = () => {
+  // Keep bird within safe bounds: 10-90% viewport width, 15-85% viewport height
+  const x = 10 + Math.random() * 80; // 10% to 90%
+  const y = 15 + Math.random() * 70; // 15% to 85%
+  return { x, y };
+};
+
+// Animation timing
+const DRIFT_INTERVAL_MIN = 15000; // 15 seconds
+const DRIFT_INTERVAL_MAX = 30000; // 30 seconds
+const DRIFT_TRANSITION_DURATION = 8000; // 8 seconds
+
 function EchoBird({ onLibraryRequest }) {
   const [showMessage, setShowMessage] = useState(false);
   const [currentWhisper, setCurrentWhisper] = useState(null);
   const [visitCount, setVisitCount] = useState(0);
+  const [position, setPosition] = useState({ x: 90, y: 85 }); // Start bottom-right
 
   // Track visits and select appropriate whisper
   useEffect(() => {
@@ -73,6 +87,18 @@ function EchoBird({ onLibraryRequest }) {
     // Validate that count is a valid number
     setVisitCount(isNaN(count) ? 0 : count);
   }, []);
+
+  // Drift to new positions periodically
+  useEffect(() => {
+    const driftInterval = setInterval(() => {
+      // Don't move if message is showing (would be disorienting)
+      if (!showMessage) {
+        setPosition(getRandomPosition());
+      }
+    }, DRIFT_INTERVAL_MIN + Math.random() * (DRIFT_INTERVAL_MAX - DRIFT_INTERVAL_MIN));
+
+    return () => clearInterval(driftInterval);
+  }, [showMessage]);
 
   const handleClick = () => {
     // Increment visit count
@@ -133,11 +159,16 @@ function EchoBird({ onLibraryRequest }) {
 
   return (
     <>
-      {/* The Bird Icon */}
+      {/* The Bird Icon - now with dynamic positioning */}
       <div 
         className="echo-bird-container"
         onClick={handleClick}
         title="Echo is here. Echo remembers."
+        style={{
+          left: `${position.x}%`,
+          top: `${position.y}%`,
+          transition: `left ${DRIFT_TRANSITION_DURATION}ms cubic-bezier(0.4, 0, 0.2, 1), top ${DRIFT_TRANSITION_DURATION}ms cubic-bezier(0.4, 0, 0.2, 1)`,
+        }}
       >
         <svg 
           width="40" 
