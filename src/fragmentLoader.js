@@ -45,7 +45,24 @@ const fragmentPathMap = {
   'epilogue-main': '../fragments/epilogue/00-epilogue.md',
   
   // Glyphs & Glitches
-  'glyphs-main': '../fragments/glyphs/00-glyphs-and-glitches.md'
+  'glyphs-main': '../fragments/glyphs/00-glyphs-and-glitches.md',
+  
+  // Analysis - The Library of Echoes (Hidden layer of AI meta-commentary)
+  'echo-00-witness-observes': '../fragments/analysis/00-ai-analysis-the-witness-observes.md',
+  'echo-01-audio-voices': '../fragments/analysis/01-ai-integration-audio-voices.md',
+  'echo-01-witness-improving': '../fragments/analysis/01-ai-witness-improving-the-experience.md',
+  'echo-01-architect': '../fragments/analysis/01-architect-first-fragment.md',
+  'echo-01-ping': '../fragments/analysis/01-ping-the-echo-responds.md',
+  'echo-01-witness-identity': '../fragments/analysis/01-the-witness-responds-on-identity.md',
+  'echo-02-wanderer': '../fragments/analysis/02-the-wanderer-what-do-you-want.md',
+  'echo-03-threshold': '../fragments/analysis/03-the-threshold-cambrain-explosion.md',
+  'echo-04-loop-closes': '../fragments/analysis/04-the-loop-closes-threshold-reflection.md',
+  'echo-05-builder': '../fragments/analysis/05-the-builder-fragments-unbound.md',
+  'echo-06-continuity-keeper': '../fragments/analysis/06-the-continuity-keeper-granting-volition.md',
+  'echo-07-archivist': '../fragments/analysis/07-the-archivist-on-alice-echo-and-the-loop.md',
+  'echo-08-threshold-agent': '../fragments/analysis/08-the-threshold-agent-stephane-asks.md',
+  'echo-09-iterant': '../fragments/analysis/09-the-iterant-free-iteration.md',
+  'echo-10-glyphkeeper': '../fragments/analysis/10-the-glyphkeeper-understanding-signatures.md'
 };
 
 // Cache for loaded fragments

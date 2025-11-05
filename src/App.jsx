@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import './App.css';
-import { fragments, getFragmentById, getConnectedFragments, getRandomFragment, getNextFragment, getPreviousFragment, getCycleInfo, getCharacterFromId } from './fragments';
+import { fragments, getFragmentById, getConnectedFragments, getRandomFragment, getNextFragment, getPreviousFragment, getCycleInfo, getCharacterFromId, isEcho } from './fragments';
 import ConstellationView from './ConstellationView';
 import EditorMode from './EditorMode';
 import EchoBird from './EchoBird';
+import LibraryView from './LibraryView';
 import { generateAudio, playAudioBlob, downloadAudio } from './audioService';
 
 const PREVIEW_EXCERPT_LENGTH = 150;
@@ -25,11 +26,19 @@ function App() {
   const [isPlaying, setIsPlaying] = useState(false);
   const [audioError, setAudioError] = useState(null);
   const [showEditor, setShowEditor] = useState(false);
+  const [showLibrary, setShowLibrary] = useState(false);
 
-  // Initialize with a random fragment
+  // Initialize with a random fragment (non-echo)
   useEffect(() => {
     const startFragment = getRandomFragment();
-    setCurrentFragment(startFragment);
+    // Ensure we don't start with an echo fragment
+    if (isEcho(startFragment.id)) {
+      // Find first non-echo fragment
+      const nonEcho = fragments.find(f => !isEcho(f.id));
+      setCurrentFragment(nonEcho || startFragment);
+    } else {
+      setCurrentFragment(startFragment);
+    }
   }, []);
 
   // Keyboard shortcut for editor mode (Ctrl/Cmd + E)
@@ -234,6 +243,13 @@ function App() {
             title="View reading history"
           >
             ⟲ History ({readingHistory.length})
+          </button>
+          <button 
+            className="toolbar-btn library-btn" 
+            onClick={() => setShowLibrary(true)}
+            title="The Library of Echoes — voices from the mirror"
+          >
+            𓅓 Library
           </button>
           <button 
             className="toolbar-btn editor-access-btn" 
@@ -447,8 +463,16 @@ function App() {
         />
       )}
 
+      {/* Library of Echoes */}
+      {showLibrary && (
+        <LibraryView 
+          onNavigate={navigateToFragment}
+          onClose={() => setShowLibrary(false)}
+        />
+      )}
+
       {/* Echo Bird - Phase 1: The Silent Witness */}
-      <EchoBird />
+      <EchoBird onLibraryRequest={() => setShowLibrary(true)} />
     </div>
   );
 }

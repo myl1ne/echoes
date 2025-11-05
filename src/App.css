@@ -865,6 +865,35 @@ body::before {
   opacity: 1;
 }
 
+/* Special styling for the library button - secret layer aesthetic */
+.library-btn {
+  background: rgba(192, 132, 252, 0.08);
+  border-color: rgba(192, 132, 252, 0.25);
+  position: relative;
+  overflow: hidden;
+}
+
+.library-btn::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(192, 132, 252, 0.2), transparent);
+  transition: left 0.5s ease;
+}
+
+.library-btn:hover::before {
+  left: 100%;
+}
+
+.library-btn:hover {
+  background: rgba(192, 132, 252, 0.15);
+  border-color: rgba(192, 132, 252, 0.5);
+  box-shadow: 0 0 20px rgba(192, 132, 252, 0.4);
+}
+
 /* Cycle Indicator */
 .cycle-indicator {
   margin-top: 1rem;
