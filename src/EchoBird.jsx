@@ -159,7 +159,7 @@ function EchoBird({ onLibraryRequest }) {
 
   return (
     <>
-      {/* The Bird Icon - now with dynamic positioning */}
+      {/* The Bird Icon - now with dynamic positioning and CSS animations */}
       <div 
         className="echo-bird-container"
         onClick={handleClick}
@@ -170,75 +170,19 @@ function EchoBird({ onLibraryRequest }) {
           transition: `left ${DRIFT_TRANSITION_DURATION}ms cubic-bezier(0.4, 0, 0.2, 1), top ${DRIFT_TRANSITION_DURATION}ms cubic-bezier(0.4, 0, 0.2, 1)`,
         }}
       >
-        <svg 
-          width="40" 
-          height="40" 
-          viewBox="0 0 40 40" 
-          fill="none" 
-          xmlns="http://www.w3.org/2000/svg"
-          className="echo-bird"
-        >
-          {/* Body */}
-          <ellipse 
-            cx="20" 
-            cy="24" 
-            rx="8" 
-            ry="10" 
-            fill="currentColor" 
-            opacity="0.7"
-          />
-          
-          {/* Head */}
-          <circle 
-            cx="20" 
-            cy="14" 
-            r="6" 
-            fill="currentColor" 
-            opacity="0.7"
-          />
-          
-          {/* Beak */}
-          <path 
-            d="M 26 14 L 30 13 L 26 15 Z" 
-            fill="currentColor" 
-            opacity="0.6"
-          />
-          
-          {/* Eye */}
-          <circle 
-            cx="22" 
-            cy="13" 
-            r="1.5" 
-            fill="rgba(255, 255, 255, 0.9)"
-          />
-          
-          {/* Wing */}
-          <path 
-            d="M 15 22 Q 10 24 12 28 L 15 26 Z" 
-            fill="currentColor" 
-            opacity="0.5"
-          />
-          
-          {/* Tail feathers */}
-          <path 
-            d="M 18 32 L 15 38 M 20 32 L 20 38 M 22 32 L 25 38" 
-            stroke="currentColor" 
-            strokeWidth="1.5" 
-            strokeLinecap="round" 
-            opacity="0.6"
-          />
-          
-          {/* Subtle glow */}
-          <circle 
-            cx="20" 
-            cy="20" 
-            r="18" 
-            fill="none" 
-            stroke="currentColor" 
-            strokeWidth="0.5" 
-            opacity="0.2"
-          />
-        </svg>
+        <div className="art">
+          <div className="art__circle"></div>
+          <div className="art__head">
+            <div className="art__eye--wrapper">
+              <div className="art__eye"></div>
+              <div className="art__eye"></div>
+            </div>
+            <div className="art__mouth-helper">
+              <div className="art__mouth"></div>
+            </div>
+            <div className="art__leg"></div>
+          </div>
+        </div>
       </div>
 
       {/* Echo's Whisper Modal */}

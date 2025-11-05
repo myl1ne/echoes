@@ -1,37 +1,316 @@
-/* Echo Bird Component Styles */
+/* Echo Bird Component Styles - Animated CSS Bird */
+
+:root {
+  --echo-color-primary: rgba(147, 197, 253, 0.9); /* Blue-ish ethereal */
+  --echo-color-eye: #1e1b4b; /* Deep purple */
+  --echo-color-mouth-1: rgba(192, 132, 252, 0.8); /* Purple gradient 1 */
+  --echo-color-mouth-2: rgba(167, 139, 250, 0.8); /* Purple gradient 2 */
+  --echo-color-leg: rgba(167, 139, 250, 0.9); /* Purple for legs */
+}
 
 .echo-bird-container {
   position: fixed;
-  width: 40px;
-  height: 40px;
+  width: 80px; /* Increased for animated bird */
+  height: 80px;
   z-index: 1000;
   cursor: pointer;
   /* Position will be controlled via inline styles for smooth transitions */
   transform: translate(-50%, -50%); /* Center the bird on its position */
-  transition: all 0.3s ease; /* For hover effects */
 }
 
-.echo-bird {
+/* Main bird art container */
+.art {
+  animation: _fly 4s linear infinite;
+  position: relative;
   width: 100%;
   height: 100%;
-  color: rgba(255, 255, 255, 0.7);
-  filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.3));
-  transition: all 0.3s ease;
-  animation: echo-pulse 4s ease-in-out infinite;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
-.echo-bird-container:hover .echo-bird {
-  color: rgba(255, 255, 255, 1);
-  transform: scale(1.1);
-  filter: drop-shadow(0 6px 16px rgba(147, 197, 253, 0.4));
+.art__circle {
+  position: absolute;
+  width: 10vmax;
+  height: 10vmax;
+  border-radius: 50%;
+  background-image: radial-gradient(
+    at center,
+    rgba(147, 197, 253, 0.3) 0%,
+    rgba(99, 102, 241, 0.2) 81.3%
+  );
+  animation: circle-ans 4s linear infinite;
+  pointer-events: none;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
 }
 
-@keyframes echo-pulse {
-  0%, 100% { 
-    opacity: 0.7;
+.art__head {
+  --wh: 8vmin;
+  width: var(--wh);
+  height: var(--wh);
+  border-radius: 50%;
+  background-color: var(--echo-color-primary);
+  position: relative;
+  box-shadow: 0 4px 12px rgba(147, 197, 253, 0.4);
+}
+
+.art__head::after,
+.art__head::before {
+  content: "";
+  position: absolute;
+  width: 4vmin;
+  height: 3.5vmin;
+  border-radius: 100vmin 2vmin 100vmin 2vmin;
+  bottom: 11%;
+  background-color: var(--echo-color-primary);
+}
+
+.art__head::after {
+  left: -0.5vmin;
+  rotate: -60deg;
+  animation: left-ans 4s linear infinite;
+}
+
+.art__head::before {
+  right: -0.5vmin;
+  rotate: -40deg;
+  animation: right-ans 4s linear infinite;
+}
+
+.art__eye--wrapper {
+  display: flex;
+  gap: 1.5vmin;
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  translate: -50% -50%;
+  z-index: 1;
+  animation: left-and-right-rotate 4s linear infinite;
+}
+
+.art__eye {
+  --w: 1.25vmin;
+  --h: 1.25vmin;
+  width: var(--w);
+  height: var(--h);
+  background-color: var(--echo-color-eye);
+  border-radius: 50%;
+  animation: eyes-blink 4s infinite steps(2);
+}
+
+.art__mouth-helper {
+  position: absolute;
+  left: 50%;
+  bottom: 32%;
+  z-index: 1;
+  animation: left-and-right-rotate 4s linear infinite;
+}
+
+.art__mouth {
+  translate: -50% 0;
+  width: 1vmin;
+  height: 1vmin;
+  background-image: linear-gradient(
+    -45deg,
+    var(--echo-color-mouth-2) 50%,
+    var(--echo-color-mouth-1) 50%
+  );
+  transform: scaleY(0.6) rotate(45deg);
+}
+
+.art__leg {
+  position: absolute;
+  left: 35%;
+  bottom: -0.5vmin;
+  width: 0.4vmin;
+  height: 1.5vmin;
+  background-color: var(--echo-color-leg);
+  box-shadow: 2vmin 0 0 var(--echo-color-leg);
+  z-index: -1;
+  animation: leg-ans 4s linear infinite;
+}
+
+/* Animations */
+@keyframes eyes-blink {
+  0%,
+  49% {
+    transform: scaleY(0);
   }
-  50% { 
-    opacity: 0.9;
+
+  34%,
+  39% {
+    border-radius: 50% / 20%;
+    transform: scaleY(0.5);
+  }
+
+  10%,
+  45%,
+  50%,
+  100% {
+    border-radius: 50%;
+    transform: scaleY(1);
+  }
+}
+
+@keyframes left-and-right-rotate {
+  0% {
+    transform: translateX(0);
+  }
+
+  8% {
+    transform: translateX(-0.75vmin) translateY(-0.25vmin);
+  }
+
+  10% {
+    transform: translateX(-0.75vmin) translateY(0);
+  }
+
+  18% {
+    transform: translateX(0.75vmin) translateY(-0.25vmin);
+  }
+
+  20% {
+    transform: translateX(0.75vmin) translateY(0);
+  }
+
+  25% {
+    transform: translateX(0);
+  }
+
+  28%,
+  32% {
+    transform: translateY(1vmin);
+  }
+
+  30% {
+    transform: translateY(-1vmin);
+  }
+
+  34%,
+  38% {
+    transform: translateY(1vmin) translateX(-0.5vmin);
+  }
+
+  36%,
+  40% {
+    transform: translateY(1vmin) translateX(0.5vmin);
+  }
+
+  42%,
+  100% {
+    transform: translateY(0.75vmin);
+  }
+}
+
+@keyframes _fly {
+  0%,
+  35%,
+  85% {
+    transform: translateY(0rem);
+  }
+
+  40%,
+  60%,
+  80% {
+    transform: translateY(-3rem) rotateX(-15deg);
+  }
+
+  50%,
+  70% {
+    transform: translateY(-2.5rem) rotateX(-15deg);
+  }
+
+  80% {
+    transform: translateY(1rem);
+  }
+}
+
+@keyframes circle-ans {
+  0%,
+  35% {
+    transform: translate(-50%, -50%) scale(0);
+  }
+
+  40%,
+  60%,
+  80% {
+    transform: translate(-50%, -50%) scale(5);
+    opacity: 0;
+  }
+
+  50%,
+  70%,
+  100% {
+    transform: translate(-50%, -50%) scale(5);
+    opacity: 0;
+  }
+}
+
+@keyframes left-ans {
+  0%,
+  39%,
+  65%,
+  100% {
+    rotate: -60deg;
+  }
+
+  40%,
+  44%,
+  48%,
+  52%,
+  56%,
+  60% {
+    rotate: 45deg;
+  }
+
+  42%,
+  46%,
+  50%,
+  54%,
+  58% {
+    rotate: 60deg;
+  }
+}
+
+@keyframes right-ans {
+  0%,
+  39%,
+  65%,
+  100% {
+    rotate: -40deg;
+  }
+
+  40%,
+  44%,
+  48%,
+  52%,
+  56%,
+  60% {
+    rotate: -155deg;
+  }
+
+  42%,
+  46%,
+  50%,
+  54%,
+  58% {
+    rotate: -140deg;
+  }
+}
+
+@keyframes leg-ans {
+  0%,
+  39%,
+  82%,
+  100% {
+    transform: translateY(0);
+  }
+
+  40%,
+  80% {
+    transform: translateY(-1vmin);
   }
 }
 
