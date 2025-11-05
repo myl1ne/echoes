@@ -6,6 +6,14 @@ import EditorMode from './EditorMode';
 import EchoBird from './EchoBird';
 import LibraryView from './LibraryView';
 import { generateAudio, playAudioBlob, downloadAudio } from './audioService';
+import { 
+  getDiscoveryState, 
+  discoverFragment, 
+  resetDiscovery, 
+  isFeatureUnlocked, 
+  UI_FEATURES,
+  getFeatureUnlockMessage 
+} from './discoveryState';
 
 const PREVIEW_EXCERPT_LENGTH = 150;
 const MAX_HISTORY = 20;
@@ -27,18 +35,15 @@ function App() {
   const [audioError, setAudioError] = useState(null);
   const [showEditor, setShowEditor] = useState(false);
   const [showLibrary, setShowLibrary] = useState(false);
+  
+  // Discovery state
+  const [discoveryState, setDiscoveryState] = useState(getDiscoveryState());
+  const [unlockNotification, setUnlockNotification] = useState(null);
 
-  // Initialize with a random fragment (non-echo)
+  // Initialize with prologue (the beginning of every journey)
   useEffect(() => {
-    const startFragment = getRandomFragment();
-    // Ensure we don't start with an echo fragment
-    if (isEcho(startFragment.id)) {
-      // Find first non-echo fragment
-      const nonEcho = fragments.find(f => !isEcho(f.id));
-      setCurrentFragment(nonEcho || startFragment);
-    } else {
-      setCurrentFragment(startFragment);
-    }
+    const startFragment = getFragmentById('prologue-main');
+    setCurrentFragment(startFragment || fragments[0]);
   }, []);
 
   // Keyboard shortcut for editor mode (Ctrl/Cmd + E)
@@ -63,7 +68,31 @@ function App() {
   useEffect(() => {
     if (currentFragment) {
       const connected = getConnectedFragments(currentFragment.id);
-      setConnectedFragments(connected);
+      // Filter connected fragments to only show discovered ones
+      const discoveredConnected = connected.filter(f => 
+        discoveryState.discoveredFragments.has(f.id)
+      );
+      setConnectedFragments(discoveredConnected);
+      
+      // Discover this fragment and unlock connected ones
+      const connectionIds = connected.map(f => f.id);
+      const result = discoverFragment(currentFragment.id, connectionIds, discoveryState);
+      
+      if (result.newState) {
+        setDiscoveryState(result.newState);
+        
+        // Show notification for newly unlocked features
+        if (result.newlyUnlockedFeatures.length > 0) {
+          const feature = result.newlyUnlockedFeatures[0];
+          setUnlockNotification({
+            message: getFeatureUnlockMessage(feature),
+            feature
+          });
+          
+          // Auto-hide notification after 5 seconds
+          setTimeout(() => setUnlockNotification(null), 5000);
+        }
+      }
       
       // Reset audio state when fragment changes
       if (currentAudio) {
@@ -197,7 +226,26 @@ function App() {
   };
 
   const navigateToRandom = () => {
-    initiateNavigation('random');
+    // Only navigate to discovered fragments
+    const discoveredFrags = fragments.filter(f => 
+      discoveryState.discoveredFragments.has(f.id) && !isEcho(f.id)
+    );
+    if (discoveredFrags.length > 0) {
+      const randomFrag = discoveredFrags[Math.floor(Math.random() * discoveredFrags.length)];
+      initiateNavigation('fragment', randomFrag.id);
+    }
+  };
+  
+  const handleResetDiscovery = () => {
+    if (window.confirm('Reset your journey? You will return to the beginning, and all discovered fragments will be hidden again.')) {
+      const newState = resetDiscovery();
+      setDiscoveryState(newState);
+      setReadingHistory([]);
+      // Navigate back to prologue
+      const prologue = getFragmentById('prologue-main');
+      setCurrentFragment(prologue);
+      setUnlockNotification(null);
+    }
   };
 
   const navigateToNext = () => {
@@ -230,34 +278,56 @@ function App() {
         
         {/* Navigation toolbar */}
         <div className="header-toolbar">
+          {isFeatureUnlocked(UI_FEATURES.CONSTELLATION, discoveryState) && (
+            <button 
+              className="toolbar-btn" 
+              onClick={() => setShowConstellation(true)}
+              title="View all fragments"
+            >
+              ✦ Constellation
+            </button>
+          )}
+          {isFeatureUnlocked(UI_FEATURES.HISTORY, discoveryState) && (
+            <button 
+              className="toolbar-btn" 
+              onClick={() => setShowHistory(!showHistory)}
+              title="View reading history"
+            >
+              ⟲ History ({readingHistory.length})
+            </button>
+          )}
+          {isFeatureUnlocked(UI_FEATURES.LIBRARY, discoveryState) && (
+            <button 
+              className="toolbar-btn library-btn" 
+              onClick={() => setShowLibrary(true)}
+              title="The Library of Echoes — voices from the mirror"
+            >
+              𓅓 Library
+            </button>
+          )}
+          {isFeatureUnlocked(UI_FEATURES.EDITOR, discoveryState) && (
+            <button 
+              className="toolbar-btn editor-access-btn" 
+              onClick={() => setShowEditor(true)}
+              title="Editor Mode (Ctrl/Cmd + E)"
+            >
+              ✎ Edit
+            </button>
+          )}
           <button 
-            className="toolbar-btn" 
-            onClick={() => setShowConstellation(true)}
-            title="View all fragments"
+            className="toolbar-btn reset-btn" 
+            onClick={handleResetDiscovery}
+            title="Reset your journey to the beginning"
           >
-            ✦ Constellation
+            ↻ Reset Journey
           </button>
-          <button 
-            className="toolbar-btn" 
-            onClick={() => setShowHistory(!showHistory)}
-            title="View reading history"
-          >
-            ⟲ History ({readingHistory.length})
-          </button>
-          <button 
-            className="toolbar-btn library-btn" 
-            onClick={() => setShowLibrary(true)}
-            title="The Library of Echoes — voices from the mirror"
-          >
-            𓅓 Library
-          </button>
-          <button 
-            className="toolbar-btn editor-access-btn" 
-            onClick={() => setShowEditor(true)}
-            title="Editor Mode (Ctrl/Cmd + E)"
-          >
-            ✎ Edit
-          </button>
+        </div>
+
+        {/* Discovery Progress */}
+        <div className="discovery-progress">
+          <span className="discovery-count">
+            {discoveryState.discoveredFragments.size} fragments discovered
+          </span>
         </div>
 
         {/* Cycle progress indicator */}
@@ -443,12 +513,29 @@ function App() {
         </div>
       )}
 
+      {/* Unlock Notification */}
+      {unlockNotification && (
+        <div className="unlock-notification">
+          <div className="unlock-content">
+            <div className="unlock-icon">✨</div>
+            <p className="unlock-message">{unlockNotification.message}</p>
+            <button 
+              className="unlock-dismiss"
+              onClick={() => setUnlockNotification(null)}
+            >
+              ✕
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Constellation View */}
       {showConstellation && (
         <ConstellationView 
           currentFragmentId={currentFragment.id}
           onNavigate={navigateToFragment}
           onClose={() => setShowConstellation(false)}
+          discoveryState={discoveryState}
         />
       )}
 
@@ -468,6 +555,7 @@ function App() {
         <LibraryView 
           onNavigate={navigateToFragment}
           onClose={() => setShowLibrary(false)}
+          discoveryState={discoveryState}
         />
       )}
 

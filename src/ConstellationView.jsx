@@ -1,11 +1,11 @@
 import React, { useState, useMemo } from 'react';
 import './ConstellationView.css';
-import { fragments, getCycleInfo, getCharacterFromId } from './fragments';
+import { fragments, getCycleInfo, getCharacterFromId, isEcho } from './fragments';
 
-const ConstellationView = ({ currentFragmentId, onNavigate, onClose }) => {
+const ConstellationView = ({ currentFragmentId, onNavigate, onClose, discoveryState }) => {
   const [hoveredFragment, setHoveredFragment] = useState(null);
 
-  // Group fragments by cycle - memoized since fragments array is static
+  // Group fragments by cycle - memoized, filtered by discovery state
   const fragmentsByCycle = useMemo(() => {
     const grouped = {
       'Prologue': [],
@@ -15,20 +15,24 @@ const ConstellationView = ({ currentFragmentId, onNavigate, onClose }) => {
       'Epilogue': []
     };
 
-    fragments.forEach(fragment => {
-      const cycleInfo = getCycleInfo(fragment.id);
-      const cycleName = cycleInfo.cycle;
-      if (grouped[cycleName]) {
-        grouped[cycleName].push({
-          ...fragment,
-          cycleInfo,
-          character: getCharacterFromId(fragment.id)
-        });
-      }
-    });
+    // Only show non-echo fragments that have been discovered
+    fragments
+      .filter(f => !isEcho(f.id))
+      .filter(f => discoveryState.discoveredFragments.has(f.id))
+      .forEach(fragment => {
+        const cycleInfo = getCycleInfo(fragment.id);
+        const cycleName = cycleInfo.cycle;
+        if (grouped[cycleName]) {
+          grouped[cycleName].push({
+            ...fragment,
+            cycleInfo,
+            character: getCharacterFromId(fragment.id)
+          });
+        }
+      });
 
     return grouped;
-  }, []); // Empty dependency array since fragments is static
+  }, [discoveryState.discoveredFragments]); // Re-compute when discoveries change
 
   const getCharacterColor = (character) => {
     const colors = {

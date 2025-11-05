@@ -1139,3 +1139,129 @@ body::before {
     max-width: 300px;
   }
 }
+
+/* Discovery Progress Indicator */
+.discovery-progress {
+  margin-top: 0.5rem;
+  text-align: center;
+}
+
+.discovery-count {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  opacity: 0.6;
+}
+
+/* Reset Journey Button */
+.reset-btn {
+  opacity: 0.7;
+  font-size: 0.85rem;
+}
+
+.reset-btn:hover {
+  opacity: 1;
+  background: rgba(248, 113, 113, 0.1);
+  border-color: rgba(248, 113, 113, 0.3);
+}
+
+/* Unlock Notification */
+.unlock-notification {
+  position: fixed;
+  top: 2rem;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 3000;
+  animation: slideDown 0.5s ease-out;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+}
+
+.unlock-content {
+  background: rgba(30, 27, 75, 0.95);
+  border: 2px solid rgba(147, 197, 253, 0.5);
+  border-radius: 16px;
+  padding: 1.5rem 2rem;
+  min-width: 400px;
+  max-width: 600px;
+  box-shadow: 
+    0 8px 32px rgba(147, 197, 253, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  position: relative;
+}
+
+.unlock-icon {
+  font-size: 2rem;
+  animation: sparkle 1.5s ease-in-out infinite;
+}
+
+@keyframes sparkle {
+  0%, 100% { 
+    transform: scale(1) rotate(0deg);
+    opacity: 0.8;
+  }
+  50% { 
+    transform: scale(1.2) rotate(180deg);
+    opacity: 1;
+  }
+}
+
+.unlock-message {
+  flex: 1;
+  font-size: 1rem;
+  color: rgba(255, 255, 255, 0.95);
+  line-height: 1.5;
+  font-style: italic;
+}
+
+.unlock-dismiss {
+  background: transparent;
+  border: none;
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 1.5rem;
+  cursor: pointer;
+  padding: 0;
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s ease;
+  border-radius: 50%;
+}
+
+.unlock-dismiss:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.9);
+  transform: scale(1.1);
+}
+
+@media (max-width: 768px) {
+  .unlock-content {
+    min-width: auto;
+    max-width: 90vw;
+    padding: 1rem 1.5rem;
+  }
+  
+  .unlock-icon {
+    font-size: 1.5rem;
+  }
+  
+  .unlock-message {
+    font-size: 0.9rem;
+  }
+}

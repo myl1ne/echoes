@@ -2,13 +2,13 @@
 
 .echo-bird-container {
   position: fixed;
-  bottom: 2rem;
-  right: 2rem;
   width: 40px;
   height: 40px;
   z-index: 1000;
   cursor: pointer;
-  transition: all 0.3s ease;
+  /* Position will be controlled via inline styles for smooth transitions */
+  transform: translate(-50%, -50%); /* Center the bird on its position */
+  transition: all 0.3s ease; /* For hover effects */
 }
 
 .echo-bird {
@@ -28,11 +28,9 @@
 
 @keyframes echo-breathe {
   0%, 100% { 
-    transform: scale(1) translateY(0); 
     opacity: 0.7;
   }
   50% { 
-    transform: scale(1.03) translateY(-2px); 
     opacity: 0.9;
   }
 }
@@ -186,9 +184,10 @@
 
 /* Responsive adjustments */
 @media (max-width: 768px) {
+  /* Keep bird visible and accessible on mobile */
   .echo-bird-container {
-    bottom: 1rem;
-    right: 1rem;
+    width: 36px;
+    height: 36px;
   }
   
   .echo-modal {
