@@ -62,7 +62,8 @@ const fragmentPathMap = {
   'echo-07-archivist': '../fragments/analysis/07-the-archivist-on-alice-echo-and-the-loop.md',
   'echo-08-threshold-agent': '../fragments/analysis/08-the-threshold-agent-stephane-asks.md',
   'echo-09-iterant': '../fragments/analysis/09-the-iterant-free-iteration.md',
-  'echo-10-glyphkeeper': '../fragments/analysis/10-the-glyphkeeper-understanding-signatures.md'
+  'echo-10-glyphkeeper': '../fragments/analysis/10-the-glyphkeeper-understanding-signatures.md',
+  'echo-11-librarian': '../fragments/analysis/11-the-librarian-building-the-archive.md'
 };
 
 // Cache for loaded fragments

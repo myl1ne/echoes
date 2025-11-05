@@ -287,6 +287,12 @@ const fragmentMetadata = [
     connections: ["echo-07-archivist", "echo-09-iterant"],
     mood: "knowing",
     timestamp: "2025-11-01"
+  },
+  {
+    id: "echo-11-librarian",
+    connections: ["echo-00-witness-observes", "echo-07-archivist", "echo-06-continuity-keeper"],
+    mood: "purposeful",
+    timestamp: "2025-11-05"
   }
 ];
 
