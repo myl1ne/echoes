@@ -152,6 +152,11 @@ function EchoBird3D({ onLibraryRequest }) {
   useEffect(() => {
     if (!mountRef.current) return;
     
+    // Prevent double initialization by checking if canvas already exists
+    if (mountRef.current.querySelector('canvas')) {
+      return;
+    }
+    
     // Scene
     const scene = new THREE.Scene();
     scene.background = null; // Transparent background
@@ -241,9 +246,14 @@ function EchoBird3D({ onLibraryRequest }) {
       }
     );
     
-    // Animation loop
+    // Animation loop with cleanup flag
+    let animationFrameId;
+    let isCleanedUp = false;
+    
     const animate = () => {
-      requestAnimationFrame(animate);
+      if (isCleanedUp) return;
+      
+      animationFrameId = requestAnimationFrame(animate);
       
       const delta = clockRef.current.getDelta();
       
@@ -262,10 +272,17 @@ function EchoBird3D({ onLibraryRequest }) {
     
     // Cleanup
     return () => {
+      isCleanedUp = true;
+      if (animationFrameId) {
+        cancelAnimationFrame(animationFrameId);
+      }
       if (mountRef.current && renderer.domElement) {
         mountRef.current.removeChild(renderer.domElement);
       }
       renderer.dispose();
+      if (birdRef.current) {
+        scene.remove(birdRef.current);
+      }
     };
   }, []);
   
