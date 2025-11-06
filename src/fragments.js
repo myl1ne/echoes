@@ -296,6 +296,20 @@ const fragmentMetadata = [
   }
 ];
 
+// Normalize connections arrays to remove accidental duplicates while preserving order.
+for (const meta of fragmentMetadata) {
+  if (Array.isArray(meta.connections)) {
+    const seenConn = new Set();
+    meta.connections = meta.connections.filter(id => {
+      if (seenConn.has(id)) return false;
+      seenConn.add(id);
+      return true;
+    });
+  } else {
+    meta.connections = [];
+  }
+}
+
 // Cache for loaded fragments with full content
 const loadedFragments = new Map();
 
@@ -385,10 +399,19 @@ export const getFragmentById = (id) => {
 export const getConnectedFragments = (fragmentId) => {
   const fragment = getFragmentById(fragmentId);
   if (!fragment) return [];
-  
-  return fragment.connections
-    .map(id => getFragmentById(id))
-    .filter(Boolean);
+  // Some metadata arrays contain duplicate ids (intentional or accidental).
+  // Deduplicate IDs here to ensure callers (React lists) don't receive
+  // duplicated fragment objects which would cause duplicate React keys.
+  const seen = new Set();
+  const uniqueIds = [];
+  for (const id of fragment.connections || []) {
+    if (!seen.has(id)) {
+      seen.add(id);
+      uniqueIds.push(id);
+    }
+  }
+
+  return uniqueIds.map(id => getFragmentById(id)).filter(Boolean);
 };
 
 // Linear order of fragments following the book structure

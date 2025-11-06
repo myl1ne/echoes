@@ -3,6 +3,9 @@ import * as THREE from 'three';
 import { FBXLoader } from 'three/examples/jsm/loaders/FBXLoader.js';
 import './EchoBird3D.css';
 
+// Toggle debug helpers (outline, debug cube, placeholder, verbose logs)
+const DEBUG = false;
+
 // Echo's whispers
 const echoWhispers = [
   {
@@ -152,9 +155,16 @@ function EchoBird3D({ onLibraryRequest }) {
   useEffect(() => {
     if (!mountRef.current) return;
     
-    // Prevent double initialization by checking if canvas already exists
-    if (mountRef.current.querySelector('canvas')) {
-      return;
+    // Prevent double initialization: if a previous canvas exists, remove it
+    // (StrictMode may mount/unmount components twice; don't bail out, clean up)
+    const existingCanvas = mountRef.current.querySelector('canvas');
+    if (existingCanvas) {
+      try {
+        mountRef.current.removeChild(existingCanvas);
+        console.log('Removed existing EchoBird canvas to allow clean re-init.');
+      } catch (e) {
+        // ignore
+      }
     }
     
     // Scene
@@ -168,15 +178,54 @@ function EchoBird3D({ onLibraryRequest }) {
     camera.lookAt(0, 0, 0);
     cameraRef.current = camera;
     
-    // Renderer
+    // Renderer - size from container so it matches CSS and responds to layout
     const renderer = new THREE.WebGLRenderer({ 
       alpha: true,
       antialias: true 
     });
-    renderer.setSize(200, 200);
-    renderer.setPixelRatio(window.devicePixelRatio);
+    const resizeRenderer = () => {
+      const w = mountRef.current.clientWidth || 200;
+      const h = mountRef.current.clientHeight || 200;
+      renderer.setSize(w, h, false);
+      renderer.setPixelRatio(window.devicePixelRatio);
+      if (cameraRef.current) {
+        cameraRef.current.aspect = w / h;
+        cameraRef.current.updateProjectionMatrix();
+      }
+    };
+
+    // Initial size and attach
+    resizeRenderer();
     mountRef.current.appendChild(renderer.domElement);
+    // Ensure canvas is absolutely positioned to fill the container and visible for debugging
+    try {
+      const canvas = renderer.domElement;
+      canvas.style.position = 'absolute';
+      canvas.style.top = '0';
+      canvas.style.left = '0';
+      canvas.style.width = '100%';
+      canvas.style.height = '100%';
+      canvas.style.zIndex = '1001';
+      canvas.style.pointerEvents = 'none';
+      // Only add a faint debug background when debugging
+      if (DEBUG) canvas.style.background = 'rgba(0,0,0,0.02)';
+      if (DEBUG) console.log('EchoBird renderer canvas attached:', canvas);
+    } catch (e) {
+      // ignore
+    }
     rendererRef.current = renderer;
+
+    // Debug: make mount container visible during troubleshooting
+    try {
+      if (DEBUG) mountRef.current.style.outline = '1px dashed rgba(255,0,0,0.6)';
+    } catch (e) {
+      // ignore if not available
+    }
+    if (DEBUG) console.log('EchoBird mount container rect:', mountRef.current.getBoundingClientRect());
+
+    // Update on window resize
+    const handleResize = () => resizeRenderer();
+    window.addEventListener('resize', handleResize);
     
     // Lighting
     const ambientLight = new THREE.AmbientLight(0xffffff, 0.8);
@@ -215,6 +264,88 @@ function EchoBird3D({ onLibraryRequest }) {
         
         scene.add(fbx);
         birdRef.current = fbx;
+
+        // Normalize model position by centering on its bounding box so camera faces it
+        let maxDim = 0;
+        try {
+          const box = new THREE.Box3().setFromObject(fbx);
+          const size = box.getSize(new THREE.Vector3());
+          const center = box.getCenter(new THREE.Vector3());
+
+          // Reposition model so its center is at the origin
+          fbx.position.x -= center.x;
+          fbx.position.y -= center.y;
+          fbx.position.z -= center.z;
+
+          // Move camera back based on model size to ensure visibility
+          maxDim = Math.max(size.x, size.y, size.z);
+          let fitDistance = maxDim * 1.8;
+
+          // If bounding box is very small (some FBX variants), scale up the model
+          if (!isFinite(maxDim) || maxDim <= 0.001) {
+            console.warn('FBX bounding box appears empty or too small. Applying fallback scaling and placeholder.');
+            // Try scaling model up to visible range
+            const fallbackScale = 60;
+            fbx.scale.multiplyScalar(fallbackScale);
+            // Recompute bbox after scaling
+            const box2 = new THREE.Box3().setFromObject(fbx);
+            const size2 = box2.getSize(new THREE.Vector3());
+            maxDim = Math.max(size2.x, size2.y, size2.z);
+            fitDistance = (isFinite(maxDim) && maxDim > 0) ? maxDim * 1.8 : 100;
+
+            // Add a visible placeholder so we can confirm rendering (debug only)
+            if (DEBUG) {
+              const placeholderGeom = new THREE.SphereGeometry(Math.max(10, fitDistance * 0.08), 16, 12);
+              const placeholderMat = new THREE.MeshBasicMaterial({ color: 0xff6b6b, wireframe: false, opacity: 0.95 });
+              const placeholder = new THREE.Mesh(placeholderGeom, placeholderMat);
+              placeholder.position.set(0, 0, 0);
+              placeholder.name = 'echo-placeholder';
+              scene.add(placeholder);
+              console.log('Added placeholder mesh to scene to aid debugging.');
+            }
+          }
+
+          camera.position.set(0, Math.max((maxDim || 60) * 0.5, 30), (fitDistance || 120) + 30);
+          camera.lookAt(0, 0, 0);
+        } catch (err) {
+          // If geometry isn't ready, skip centering
+          console.warn('Could not compute bounding box for bird model:', err);
+        }
+
+        // Add debug helpers (axes) so orientation is visible (debug only)
+        try {
+          if (DEBUG) {
+            const axes = new THREE.AxesHelper(Math.max(20, maxDim * 0.6));
+            axes.name = 'echo-axes-helper';
+            scene.add(axes);
+          }
+        } catch (e) {
+          // ignore
+        }
+
+  // Always add a visible debug cube so we can confirm rendering
+        // Always add a visible debug cube so we can confirm rendering (debug only)
+        try {
+          if (DEBUG && !scene.getObjectByName('echo-debug-cube')) {
+            const cubeSize = Math.max(10, (maxDim || 60) * 0.4);
+            const cubeGeom = new THREE.BoxGeometry(cubeSize, cubeSize, cubeSize);
+            const cubeMat = new THREE.MeshBasicMaterial({ color: 0x2ee6b6, transparent: true, opacity: 0.9 });
+            const debugCube = new THREE.Mesh(cubeGeom, cubeMat);
+            debugCube.name = 'echo-debug-cube';
+            debugCube.position.set(0, Math.max(cubeSize * 0.5, 0), 0);
+            scene.add(debugCube);
+            console.log('Added debug cube to scene at origin to verify rendering.');
+          }
+        } catch (e) {
+          // ignore
+        }
+
+        // Final debug: list scene children
+        try {
+          if (DEBUG) console.log('EchoBird scene children:', scene.children.map(c => ({ name: c.name, type: c.type })));
+        } catch (e) {
+          // ignore
+        }
         
         // Setup animation mixer
         const mixer = new THREE.AnimationMixer(fbx);
@@ -237,6 +368,19 @@ function EchoBird3D({ onLibraryRequest }) {
         }
         
         setModelLoaded(true);
+        // Debug logs: bounding box and camera
+        try {
+          if (DEBUG) {
+            const boxDbg = new THREE.Box3().setFromObject(fbx);
+            const sizeDbg = boxDbg.getSize(new THREE.Vector3());
+            const centerDbg = boxDbg.getCenter(new THREE.Vector3());
+            console.log('Echo model bounding box size:', sizeDbg);
+            console.log('Echo model bounding box center:', centerDbg);
+            console.log('Camera after fit:', camera.position, 'looking at', camera.getWorldDirection(new THREE.Vector3()));
+          }
+        } catch (err) {
+          if (DEBUG) console.warn('Debug bounding box failed:', err);
+        }
       },
       (xhr) => {
         console.log((xhr.loaded / xhr.total * 100) + '% loaded');
@@ -273,6 +417,7 @@ function EchoBird3D({ onLibraryRequest }) {
     // Cleanup
     return () => {
       isCleanedUp = true;
+      window.removeEventListener('resize', handleResize);
       if (animationFrameId) {
         cancelAnimationFrame(animationFrameId);
       }
