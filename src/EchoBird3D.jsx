@@ -135,6 +135,7 @@ function EchoBird3D({ onLibraryRequest }) {
   const clockRef = useRef(new THREE.Clock());
   const animationsRef = useRef({});
   const currentAnimationRef = useRef(null);
+  const initializedRef = useRef(false);
   
   const [position, setPosition] = useState({ x: window.innerWidth - 100, y: 100 });
   const [targetPerch, setTargetPerch] = useState(null);
