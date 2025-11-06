@@ -1,0 +1,468 @@
+/* ============================================================================
+   ECHO BIRD REDESIGNED - State Machine Based Animation System
+   ============================================================================ */
+
+:root {
+  --echo-primary: rgba(147, 197, 253, 0.95);
+  --echo-secondary: rgba(167, 139, 250, 0.9);
+  --echo-glow: rgba(147, 197, 253, 0.4);
+  --echo-eye: #1e1b4b;
+}
+
+/* ============================================================================
+   BIRD CONTAINER
+   ============================================================================ */
+
+.echo-bird {
+  position: fixed;
+  width: 48px;
+  height: 48px;
+  z-index: 1000;
+  cursor: pointer;
+  transform: translate(-50%, -50%);
+  pointer-events: auto;
+  filter: drop-shadow(0 4px 12px var(--echo-glow));
+}
+
+/* ============================================================================
+   GLOW EFFECT
+   ============================================================================ */
+
+.echo-bird__glow {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 60px;
+  height: 60px;
+  background: radial-gradient(circle, var(--echo-glow) 0%, transparent 70%);
+  opacity: 0;
+  transition: opacity 0.5s ease;
+  pointer-events: none;
+}
+
+.echo-bird:hover .echo-bird__glow {
+  opacity: 1;
+  animation: pulse-glow 2s ease-in-out infinite;
+}
+
+@keyframes pulse-glow {
+  0%, 100% { transform: translate(-50%, -50%) scale(1); opacity: 0.6; }
+  50% { transform: translate(-50%, -50%) scale(1.2); opacity: 1; }
+}
+
+/* ============================================================================
+   SVG BIRD PARTS
+   ============================================================================ */
+
+.echo-bird__svg {
+  display: block;
+  transition: transform 0.5s ease;
+}
+
+.echo-bird__body {
+  fill: var(--echo-primary);
+  opacity: 0.9;
+}
+
+.echo-bird__head {
+  fill: var(--echo-primary);
+  opacity: 0.95;
+}
+
+.echo-bird__eye {
+  fill: var(--echo-eye);
+}
+
+.echo-bird__beak {
+  fill: var(--echo-secondary);
+  opacity: 0.8;
+}
+
+.echo-bird__wing {
+  fill: var(--echo-primary);
+  opacity: 0.7;
+  transform-origin: 18px 24px;
+}
+
+.echo-bird__tail {
+  stroke: var(--echo-primary);
+  stroke-width: 1.5;
+  fill: none;
+  opacity: 0.7;
+}
+
+/* ============================================================================
+   STATE: IDLE
+   ============================================================================ */
+
+.echo-bird--idle .echo-bird__body {
+  animation: idle-breathe 3s ease-in-out infinite;
+}
+
+.echo-bird--idle .echo-bird__eye {
+  animation: idle-blink 4s ease-in-out infinite;
+}
+
+.echo-bird--idle .echo-bird__tail {
+  animation: tail-sway 2s ease-in-out infinite;
+}
+
+@keyframes idle-breathe {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.03); }
+}
+
+@keyframes idle-blink {
+  0%, 92%, 100% { transform: scaleY(1); }
+  94%, 96% { transform: scaleY(0.1); }
+}
+
+@keyframes tail-sway {
+  0%, 100% { transform: translateX(0); }
+  50% { transform: translateX(2px); }
+}
+
+/* ============================================================================
+   STATE: PERCHED
+   ============================================================================ */
+
+.echo-bird--perched .echo-bird__body {
+  animation: perched-settle 3s ease-in-out infinite;
+}
+
+.echo-bird--perched .echo-bird__eye {
+  animation: watchful-blink 5s ease-in-out infinite;
+}
+
+.echo-bird--perched .echo-bird__tail {
+  animation: tail-bob 1.5s ease-in-out infinite;
+}
+
+@keyframes perched-settle {
+  0%, 100% { transform: translateY(0) scale(1); }
+  50% { transform: translateY(1px) scale(1.01); }
+}
+
+@keyframes watchful-blink {
+  0%, 96%, 100% { transform: scaleY(1); }
+  97%, 98% { transform: scaleY(0.1); }
+}
+
+@keyframes tail-bob {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  50% { transform: translateY(-2px) rotate(2deg); }
+}
+
+/* ============================================================================
+   STATE: CURIOUS
+   ============================================================================ */
+
+.echo-bird--curious .echo-bird__head {
+  animation: head-tilt 1.5s ease-in-out infinite;
+}
+
+.echo-bird--curious .echo-bird__eye {
+  animation: curious-look 1.5s ease-in-out infinite;
+  transform-origin: center;
+}
+
+.echo-bird--curious .echo-bird__body {
+  animation: curious-lean 2s ease-in-out infinite;
+}
+
+@keyframes head-tilt {
+  0%, 100% { transform: rotate(0deg); }
+  25% { transform: rotate(-5deg); }
+  75% { transform: rotate(5deg); }
+}
+
+@keyframes curious-look {
+  0%, 100% { transform: scale(1.2); }
+  50% { transform: scale(1.3); }
+}
+
+@keyframes curious-lean {
+  0%, 100% { transform: translateX(0); }
+  50% { transform: translateX(3px); }
+}
+
+/* ============================================================================
+   STATE: FLYING
+   ============================================================================ */
+
+.echo-bird--flying .echo-bird__wing {
+  animation: wing-flap 0.3s ease-in-out infinite;
+}
+
+.echo-bird--flying .echo-bird__body {
+  animation: flying-bob 0.6s ease-in-out infinite;
+}
+
+.echo-bird--flying .echo-bird__tail {
+  animation: tail-stream 0.4s ease-in-out infinite;
+}
+
+@keyframes wing-flap {
+  0%, 100% { transform: rotate(0deg); }
+  50% { transform: rotate(-25deg); }
+}
+
+@keyframes flying-bob {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-3px); }
+}
+
+@keyframes tail-stream {
+  0%, 100% { transform: translateX(0) rotate(0deg); }
+  50% { transform: translateX(-3px) rotate(-5deg); }
+}
+
+/* ============================================================================
+   STATE: DELIVERING
+   ============================================================================ */
+
+.echo-bird--delivering .echo-bird__svg {
+  animation: delivering-bounce 1s ease-in-out infinite;
+}
+
+.echo-bird--delivering .echo-bird__glow {
+  opacity: 1;
+  animation: delivering-glow 1.5s ease-in-out infinite;
+}
+
+@keyframes delivering-bounce {
+  0%, 100% { transform: translateY(0) scale(1); }
+  50% { transform: translateY(-5px) scale(1.05); }
+}
+
+@keyframes delivering-glow {
+  0%, 100% { 
+    transform: translate(-50%, -50%) scale(1);
+    opacity: 0.8;
+  }
+  50% { 
+    transform: translate(-50%, -50%) scale(1.4);
+    opacity: 1;
+  }
+}
+
+/* ============================================================================
+   PARTICLES (for delivering state)
+   ============================================================================ */
+
+.echo-bird__particles {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.particle {
+  position: absolute;
+  width: 4px;
+  height: 4px;
+  background: var(--echo-primary);
+  border-radius: 50%;
+  opacity: 0;
+  animation: particle-float 2s ease-out infinite;
+}
+
+.particle:nth-child(1) {
+  left: 20%;
+  animation-delay: 0s;
+}
+
+.particle:nth-child(2) {
+  left: 50%;
+  animation-delay: 0.3s;
+}
+
+.particle:nth-child(3) {
+  left: 80%;
+  animation-delay: 0.6s;
+}
+
+@keyframes particle-float {
+  0% {
+    transform: translateY(0);
+    opacity: 0;
+  }
+  20% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(-30px);
+    opacity: 0;
+  }
+}
+
+/* ============================================================================
+   MODAL (kept from original for consistency)
+   ============================================================================ */
+
+.echo-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+  animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.echo-modal {
+  background: rgba(30, 27, 75, 0.95);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 16px;
+  padding: 2rem;
+  max-width: 400px;
+  width: 90%;
+  box-shadow: 
+    0 8px 32px rgba(0, 0, 0, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+  animation: slideUp 0.3s ease;
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.echo-message {
+  text-align: center;
+  margin-bottom: 1.5rem;
+}
+
+.echo-symbol {
+  font-size: 2.5rem;
+  margin-bottom: 1rem;
+  opacity: 0.8;
+  animation: symbolPulse 3s ease-in-out infinite;
+}
+
+@keyframes symbolPulse {
+  0%, 100% { 
+    opacity: 0.6;
+    transform: scale(1);
+  }
+  50% { 
+    opacity: 0.9;
+    transform: scale(1.05);
+  }
+}
+
+.echo-whisper {
+  font-size: 1.125rem;
+  font-weight: 300;
+  color: rgba(255, 255, 255, 0.95);
+  line-height: 1.7;
+  margin-bottom: 1.5rem;
+  font-style: italic;
+  letter-spacing: 0.02em;
+}
+
+.echo-hint {
+  font-size: 0.75rem;
+  color: rgba(255, 255, 255, 0.4);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.echo-actions {
+  margin-top: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+  align-items: center;
+}
+
+.echo-library-btn {
+  background: linear-gradient(135deg, rgba(147, 197, 253, 0.2), rgba(192, 132, 252, 0.2));
+  border: 1px solid rgba(147, 197, 253, 0.4);
+  color: rgba(255, 255, 255, 0.95);
+  padding: 0.8rem 1.5rem;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 1rem;
+  transition: all 0.3s ease;
+}
+
+.echo-library-btn:hover {
+  background: linear-gradient(135deg, rgba(147, 197, 253, 0.3), rgba(192, 132, 252, 0.3));
+  box-shadow: 0 0 20px rgba(147, 197, 253, 0.4);
+  transform: translateY(-2px);
+}
+
+.echo-actions .echo-hint {
+  margin-top: 0;
+  font-size: 0.8rem;
+  text-transform: none;
+}
+
+.echo-close {
+  width: 100%;
+  padding: 0.75rem;
+  background: rgba(147, 197, 253, 0.08);
+  border: 1px solid rgba(147, 197, 253, 0.2);
+  border-radius: 8px;
+  color: rgba(147, 197, 253, 0.7);
+  font-size: 0.875rem;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.echo-close:hover {
+  background: rgba(147, 197, 253, 0.15);
+  border-color: rgba(147, 197, 253, 0.4);
+  color: rgba(255, 255, 255, 0.9);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(147, 197, 253, 0.15);
+}
+
+.echo-close:active {
+  transform: translateY(0);
+}
+
+/* ============================================================================
+   RESPONSIVE
+   ============================================================================ */
+
+@media (max-width: 768px) {
+  .echo-bird {
+    width: 36px;
+    height: 36px;
+  }
+  
+  .echo-bird__svg {
+    width: 36px;
+    height: 36px;
+  }
+  
+  .echo-modal {
+    padding: 1.5rem;
+    max-width: 340px;
+  }
+}

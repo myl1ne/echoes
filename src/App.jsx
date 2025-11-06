@@ -3,7 +3,7 @@ import './App.css';
 import { fragments, getFragmentById, getConnectedFragments, getRandomFragment, getNextFragment, getPreviousFragment, getCycleInfo, getCharacterFromId, isEcho } from './fragments';
 import ConstellationView from './ConstellationView';
 import EditorMode from './EditorMode';
-import EchoBird from './EchoBird';
+import EchoBirdRedesigned from './EchoBirdRedesigned';
 import LibraryView from './LibraryView';
 import { generateAudio, playAudioBlob, downloadAudio } from './audioService';
 import { 
@@ -564,7 +564,7 @@ function App() {
       )}
 
       {/* Echo Bird - Phase 1: The Silent Witness */}
-      <EchoBird onLibraryRequest={() => setShowLibrary(true)} />
+      <EchoBirdRedesigned onLibraryRequest={() => setShowLibrary(true)} />
     </div>
   );
 }
