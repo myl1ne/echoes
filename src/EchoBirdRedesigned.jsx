@@ -215,13 +215,18 @@ function EchoBirdRedesigned({ onLibraryRequest }) {
     
     setIsTransitioning(true);
     setTargetPerch(perch);
-    transitionToState(BirdState.FLYING, 2000);
     
-    // Smooth transition to new position
+    // Set FLYING state FIRST
+    transitionToState(BirdState.FLYING, 2100); // Slightly longer than transition
+    
+    // THEN change position - this happens immediately and CSS transition handles the smooth movement
+    // The flying animation will play DURING this CSS transition
+    setPosition({ x: perch.x, y: perch.y });
+    
+    // Mark transition complete after the movement finishes
     setTimeout(() => {
-      setPosition({ x: perch.x, y: perch.y });
       setIsTransitioning(false);
-    }, 100);
+    }, 2000);
   }, [isTransitioning, transitionToState]);
 
   // Periodic perch changes
