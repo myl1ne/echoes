@@ -132,6 +132,7 @@ function EchoBird3D({ onLibraryRequest }) {
   const clockRef = useRef(new THREE.Clock());
   const animationsRef = useRef({});
   const currentAnimationRef = useRef(null);
+  const initializedRef = useRef(false);
   
   const [position, setPosition] = useState({ x: window.innerWidth - 100, y: 100 });
   const [targetPerch, setTargetPerch] = useState(null);
@@ -152,10 +153,9 @@ function EchoBird3D({ onLibraryRequest }) {
   useEffect(() => {
     if (!mountRef.current) return;
     
-    // Prevent double initialization by checking if canvas already exists
-    if (mountRef.current.querySelector('canvas')) {
-      return;
-    }
+    // Prevent double initialization in StrictMode
+    if (initializedRef.current) return;
+    initializedRef.current = true;
     
     // Scene
     const scene = new THREE.Scene();
