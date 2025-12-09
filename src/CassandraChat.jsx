@@ -85,7 +85,16 @@ function CassandraChat({ onClose }) {
       });
       
       if (!response.ok) {
-        throw new Error(`Server error: ${response.status}`);
+        const errorData = await response.json().catch(() => ({}));
+        if (response.status === 500 && errorData.details) {
+          throw new Error(`Server error: ${errorData.details}`);
+        } else if (response.status === 401 || response.status === 403) {
+          throw new Error('API authentication failed. Check your OpenAI API key in .env');
+        } else if (response.status === 429) {
+          throw new Error('Rate limit exceeded. Please wait a moment and try again.');
+        } else {
+          throw new Error(`Server returned ${response.status}. Check console for details.`);
+        }
       }
       
       const data = await response.json();
@@ -97,7 +106,7 @@ function CassandraChat({ onClose }) {
       }]);
     } catch (err) {
       console.error('Failed to send message:', err);
-      setError('Failed to reach Cassandra. Check the console for details.');
+      setError(err.message || 'Failed to reach Cassandra. Is the server running?');
     } finally {
       setIsLoading(false);
       setIsTyping(false);
