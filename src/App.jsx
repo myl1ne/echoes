@@ -22,6 +22,7 @@ import {
   getAmbientVolume 
 } from './ambientSoundscape';
 import AmbientSoundscape from './ambientSoundscape';
+import { DEFAULT_AMBIENT_VOLUME } from './constants';
 
 const PREVIEW_EXCERPT_LENGTH = 150;
 const MAX_HISTORY = 20;
@@ -46,7 +47,7 @@ function App() {
   
   // Ambient soundscape state
   const [ambientPlaying, setAmbientPlaying] = useState(false);
-  const [ambientVolume, setAmbientVolumeState] = useState(0.15);
+  const [ambientVolume, setAmbientVolumeState] = useState(DEFAULT_AMBIENT_VOLUME);
   
   // Discovery state
   const [discoveryState, setDiscoveryState] = useState(getDiscoveryState());

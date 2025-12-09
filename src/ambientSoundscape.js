@@ -12,6 +12,8 @@
  * - The silence between notes matters
  */
 
+import { DEFAULT_AMBIENT_VOLUME } from './constants';
+
 class AmbientSoundscape {
   constructor() {
     this.audioContext = null;
@@ -22,7 +24,14 @@ class AmbientSoundscape {
     this.currentMode = 'witness'; // Default ambient mode
     
     // Volume control
-    this.volume = 0.15; // Gentle default volume
+    this.volume = DEFAULT_AMBIENT_VOLUME;
+    
+    // Configuration constants
+    this.DETUNE_AMOUNT = 0.5; // Hz detuning for shimmer effect
+    this.BASE_INTERVAL_MS = 8000; // Base interval between scheduled sounds
+    this.INTERVAL_VARIATION_MS = 6000; // Random variation in scheduling
+    this.PENTATONIC_SCALE = [1, 9/8, 5/4, 3/2, 5/3]; // Major pentatonic ratios
+    this.BELL_HARMONICS = [1, 2.4, 3.7, 5.2]; // Bell-like partial ratios
     
     // Modes for different fragments/moods
     this.modes = {
@@ -93,7 +102,7 @@ class AmbientSoundscape {
       
       // Sine waves for purity, slightly detuned for shimmer
       osc.type = 'sine';
-      osc.frequency.value = config.baseFreq * harmonic + (Math.random() - 0.5) * 0.5;
+      osc.frequency.value = config.baseFreq * harmonic + (Math.random() - 0.5) * this.DETUNE_AMOUNT;
       
       // Low-pass filter for warmth
       filter.type = 'lowpass';
@@ -129,8 +138,7 @@ class AmbientSoundscape {
     const now = this.audioContext.currentTime + delay;
     
     // Random note from pentatonic scale (no dissonance)
-    const scale = [1, 9/8, 5/4, 3/2, 5/3]; // Major pentatonic ratios
-    const noteRatio = scale[Math.floor(Math.random() * scale.length)];
+    const noteRatio = this.PENTATONIC_SCALE[Math.floor(Math.random() * this.PENTATONIC_SCALE.length)];
     const freq = config.baseFreq * noteRatio * (Math.random() > 0.5 ? 1 : 0.5);
     
     const osc = this.audioContext.createOscillator();
@@ -164,7 +172,7 @@ class AmbientSoundscape {
     const baseFreq = 1000 + Math.random() * 1500;
     
     // Multiple partials for bell-like timbre
-    [1, 2.4, 3.7, 5.2].forEach(partial => {
+    this.BELL_HARMONICS.forEach(partial => {
       const osc = this.audioContext.createOscillator();
       const gain = this.audioContext.createGain();
       
@@ -191,8 +199,7 @@ class AmbientSoundscape {
     if (!this.isPlaying) return;
     
     const config = this.modes[mode];
-    const baseInterval = 8000; // 8 seconds base
-    const randomVariation = Math.random() * 6000; // +0-6 seconds
+    const randomVariation = Math.random() * this.INTERVAL_VARIATION_MS;
     
     // Randomly choose sound type
     const roll = Math.random();
@@ -207,7 +214,7 @@ class AmbientSoundscape {
     }
     
     // Schedule next sound
-    const nextDelay = baseInterval + randomVariation;
+    const nextDelay = this.BASE_INTERVAL_MS + randomVariation;
     setTimeout(() => {
       this.scheduleEvolvingSounds(mode);
     }, nextDelay);
