@@ -6,7 +6,9 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "cassandra": "node cassandra/server.js",
+    "dev:all": "concurrently \"npm run dev\" \"npm run cassandra\""
   },
   "keywords": [
     "digital-literature",
@@ -27,9 +29,14 @@
   "license": "ISC",
   "devDependencies": {
     "@vitejs/plugin-react": "^5.1.0",
+    "concurrently": "^9.2.1",
     "vite": "^7.1.12"
   },
   "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^17.2.3",
+    "express": "^5.2.1",
+    "openai": "^6.10.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0"
   }

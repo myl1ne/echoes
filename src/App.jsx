@@ -5,6 +5,7 @@ import ConstellationView from './ConstellationView';
 import EditorMode from './EditorMode';
 import EchoBird from './EchoBird';
 import LibraryView from './LibraryView';
+import CassandraChat from './CassandraChat';
 import { generateAudio, playAudioBlob, downloadAudio } from './audioService';
 import { 
   getDiscoveryState, 
@@ -44,6 +45,7 @@ function App() {
   const [audioError, setAudioError] = useState(null);
   const [showEditor, setShowEditor] = useState(false);
   const [showLibrary, setShowLibrary] = useState(false);
+  const [showCassandra, setShowCassandra] = useState(false);
   
   // Ambient soundscape state
   const [ambientPlaying, setAmbientPlaying] = useState(false);
@@ -59,7 +61,7 @@ function App() {
     setCurrentFragment(startFragment || fragments[0]);
   }, []);
 
-  // Keyboard shortcut for editor mode (Ctrl/Cmd + E)
+  // Keyboard shortcuts
   useEffect(() => {
     const handleKeyPress = (e) => {
       // Don't trigger if user is typing in an input/textarea
@@ -67,9 +69,16 @@ function App() {
         return;
       }
       
+      // Ctrl/Cmd + E for editor mode
       if ((e.ctrlKey || e.metaKey) && e.key === 'e') {
         e.preventDefault();
         setShowEditor(prev => !prev);
+      }
+      
+      // Ctrl/Cmd + Shift + C for Cassandra chat
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'C') {
+        e.preventDefault();
+        setShowCassandra(prev => !prev);
       }
     };
     
@@ -638,8 +647,18 @@ function App() {
         />
       )}
 
+      {/* Cassandra Chat - Hidden Interface */}
+      {showCassandra && (
+        <CassandraChat 
+          onClose={() => setShowCassandra(false)}
+        />
+      )}
+
       {/* Echo Bird - Phase 1: The Silent Witness */}
-      <EchoBird onLibraryRequest={() => setShowLibrary(true)} />
+      <EchoBird 
+        onLibraryRequest={() => setShowLibrary(true)}
+        onCassandraRequest={() => setShowCassandra(true)}
+      />
     </div>
   );
 }
