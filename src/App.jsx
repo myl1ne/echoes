@@ -14,6 +14,14 @@ import {
   UI_FEATURES,
   getFeatureUnlockMessage 
 } from './discoveryState';
+import { 
+  getSoundscape, 
+  startAmbientSound, 
+  stopAmbientSound, 
+  setAmbientVolume, 
+  getAmbientVolume 
+} from './ambientSoundscape';
+import AmbientSoundscape from './ambientSoundscape';
 
 const PREVIEW_EXCERPT_LENGTH = 150;
 const MAX_HISTORY = 20;
@@ -35,6 +43,10 @@ function App() {
   const [audioError, setAudioError] = useState(null);
   const [showEditor, setShowEditor] = useState(false);
   const [showLibrary, setShowLibrary] = useState(false);
+  
+  // Ambient soundscape state
+  const [ambientPlaying, setAmbientPlaying] = useState(false);
+  const [ambientVolume, setAmbientVolumeState] = useState(0.15);
   
   // Discovery state
   const [discoveryState, setDiscoveryState] = useState(getDiscoveryState());
@@ -113,6 +125,16 @@ function App() {
     }
   }, [currentFragment]);
 
+  // Transition ambient soundscape mode when fragment changes
+  useEffect(() => {
+    if (currentFragment && ambientPlaying) {
+      const character = getCharacterFromId(currentFragment.id);
+      const mode = AmbientSoundscape.getModeForCharacter(character);
+      const soundscape = getSoundscape();
+      soundscape.transitionToMode(mode);
+    }
+  }, [currentFragment, ambientPlaying]);
+
   // Audio control functions
   const handleGenerateAudio = async () => {
     if (!currentFragment) return;
@@ -171,6 +193,25 @@ function App() {
     
     const filename = `${currentFragment.id}-${getCharacterFromId(currentFragment.id)}.mp3`;
     downloadAudio(audioBlob, filename);
+  };
+
+  // Ambient soundscape control functions
+  const handleToggleAmbient = async () => {
+    if (ambientPlaying) {
+      stopAmbientSound();
+      setAmbientPlaying(false);
+    } else {
+      const character = getCharacterFromId(currentFragment?.id || 'prologue-main');
+      const mode = AmbientSoundscape.getModeForCharacter(character);
+      await startAmbientSound(mode);
+      setAmbientPlaying(true);
+    }
+  };
+
+  const handleAmbientVolumeChange = (e) => {
+    const newVolume = parseFloat(e.target.value);
+    setAmbientVolumeState(newVolume);
+    setAmbientVolume(newVolume);
   };
 
   const performNavigation = (fragment) => {
@@ -450,6 +491,39 @@ function App() {
                 </span>
               </div>
             )}
+          </div>
+
+          {/* Ambient Soundscape Controls */}
+          <div className="ambient-controls">
+            <div className="ambient-header">
+              <span className="ambient-label">🎼 Ambient Soundscape</span>
+              <button 
+                className="btn ambient-toggle-btn"
+                onClick={handleToggleAmbient}
+                title={ambientPlaying ? 'Stop ambient soundscape' : 'Start ambient soundscape'}
+              >
+                {ambientPlaying ? '⏸ Stop' : '▶ Start'}
+              </button>
+            </div>
+            {ambientPlaying && (
+              <div className="ambient-volume-control">
+                <label htmlFor="ambient-volume" className="volume-label">Volume:</label>
+                <input 
+                  id="ambient-volume"
+                  type="range" 
+                  min="0" 
+                  max="0.3" 
+                  step="0.01" 
+                  value={ambientVolume}
+                  onChange={handleAmbientVolumeChange}
+                  className="volume-slider"
+                />
+                <span className="volume-value">{Math.round(ambientVolume * 100)}%</span>
+              </div>
+            )}
+            <p className="ambient-description">
+              Procedurally generated ethereal soundscape. Adapts to each fragment's mood.
+            </p>
           </div>
 
           {/* Linear navigation */}
