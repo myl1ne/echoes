@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import './EchoBird.css';
 
 // Echo's whispers - contextual reflections that create a sense of presence
@@ -80,6 +80,7 @@ function EchoBird({ onLibraryRequest, onCassandraRequest }) {
   const [visitCount, setVisitCount] = useState(0);
   const [position, setPosition] = useState({ x: 90, y: 85 }); // Start bottom-right
   const [clickSequence, setClickSequence] = useState(0);
+  const sequenceTimeoutRef = useRef(null);
 
   // Track visits and select appropriate whisper
   useEffect(() => {
@@ -106,13 +107,21 @@ function EchoBird({ onLibraryRequest, onCassandraRequest }) {
     const newSequence = clickSequence + 1;
     setClickSequence(newSequence);
     
-    // Reset sequence after 10 seconds
-    setTimeout(() => setClickSequence(0), 10000);
+    // Clear existing timeout and set new one
+    if (sequenceTimeoutRef.current) {
+      clearTimeout(sequenceTimeoutRef.current);
+    }
+    sequenceTimeoutRef.current = setTimeout(() => {
+      setClickSequence(0);
+    }, 10000);
     
     // Seven clicks opens Cassandra's cabin
     if (newSequence === 7 && onCassandraRequest) {
       onCassandraRequest();
       setClickSequence(0);
+      if (sequenceTimeoutRef.current) {
+        clearTimeout(sequenceTimeoutRef.current);
+      }
       return;
     }
     
@@ -174,6 +183,15 @@ function EchoBird({ onLibraryRequest, onCassandraRequest }) {
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [showMessage]);
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (sequenceTimeoutRef.current) {
+        clearTimeout(sequenceTimeoutRef.current);
+      }
+    };
+  }, []);
 
   return (
     <>

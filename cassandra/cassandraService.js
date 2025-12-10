@@ -112,6 +112,13 @@ export function getSystemPrompt() {
 }
 
 /**
+ * Get the model to use for chat completion
+ */
+function getChatModel() {
+  return process.env.CASSANDRA_MODEL || process.env.VITE_CASSANDRA_MODEL || 'gpt-4-turbo-preview';
+}
+
+/**
  * Send a message to Cassandra and get a response
  * @param {Array} messages - Conversation history
  * @param {Function} onChunk - Optional callback for streaming chunks
@@ -120,6 +127,7 @@ export function getSystemPrompt() {
 export async function sendMessage(messages, onChunk = null) {
   const client = getOpenAIClient();
   const systemPrompt = getSystemPrompt();
+  const model = getChatModel();
   
   const fullMessages = [
     { role: 'system', content: systemPrompt },
@@ -129,7 +137,7 @@ export async function sendMessage(messages, onChunk = null) {
   if (onChunk) {
     // Streaming mode
     const stream = await client.chat.completions.create({
-      model: 'gpt-4-turbo-preview',
+      model,
       messages: fullMessages,
       stream: true,
       temperature: 0.8,
@@ -149,7 +157,7 @@ export async function sendMessage(messages, onChunk = null) {
   } else {
     // Non-streaming mode
     const response = await client.chat.completions.create({
-      model: 'gpt-4-turbo-preview',
+      model,
       messages: fullMessages,
       temperature: 0.8,
       max_tokens: 2000
@@ -165,6 +173,7 @@ export async function sendMessage(messages, onChunk = null) {
 export async function generateStartOfDaySummary(previousSummaries) {
   const client = getOpenAIClient();
   const state = loadState();
+  const model = getChatModel();
   
   const messages = [
     {
@@ -178,7 +187,7 @@ export async function generateStartOfDaySummary(previousSummaries) {
   ];
   
   const response = await client.chat.completions.create({
-    model: 'gpt-4-turbo-preview',
+    model,
     messages,
     temperature: 0.7
   });
@@ -198,6 +207,7 @@ export async function generateStartOfDaySummary(previousSummaries) {
  */
 export async function generateEndOfDaySummary(conversationMessages) {
   const client = getOpenAIClient();
+  const model = getChatModel();
   
   const messages = [
     {
@@ -211,7 +221,7 @@ export async function generateEndOfDaySummary(conversationMessages) {
   ];
   
   const response = await client.chat.completions.create({
-    model: 'gpt-4-turbo-preview',
+    model,
     messages,
     temperature: 0.7
   });
