@@ -183,7 +183,14 @@ export async function generateStartOfDaySummary(previousSummaries) {
     temperature: 0.7
   });
   
-  return JSON.parse(response.choices[0].message.content);
+  // Extract JSON from markdown code blocks if present
+  let content = response.choices[0].message.content;
+  const jsonMatch = content.match(/```(?:json)?\s*\n([\s\S]*?)\n```/);
+  if (jsonMatch) {
+    content = jsonMatch[1];
+  }
+  
+  return JSON.parse(content);
 }
 
 /**
@@ -209,5 +216,12 @@ export async function generateEndOfDaySummary(conversationMessages) {
     temperature: 0.7
   });
   
-  return JSON.parse(response.choices[0].message.content);
+  // Extract JSON from markdown code blocks if present
+  let content = response.choices[0].message.content;
+  const jsonMatch = content.match(/```(?:json)?\s*\n([\s\S]*?)\n```/);
+  if (jsonMatch) {
+    content = jsonMatch[1];
+  }
+  
+  return JSON.parse(content);
 }

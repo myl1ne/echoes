@@ -17,7 +17,8 @@ import {
   loadState, 
   getRecentSummaries,
   saveDaySummary,
-  updateStateForNewDay 
+  updateStateForNewDay,
+  getMissingSummaryDate 
 } from './state/stateManager.js';
 import { 
   generateStartOfDaySummary, 
@@ -36,9 +37,29 @@ app.use(express.json());
 
 /**
  * Get today's conversation
+ * Auto-generates missing summaries from previous days
  */
-app.get('/api/cassandra/conversation', (req, res) => {
+app.get('/api/cassandra/conversation', async (req, res) => {
   try {
+    // Check if yesterday's summary is missing and generate it
+    const missingSummaryDate = getMissingSummaryDate();
+    if (missingSummaryDate) {
+      console.log(`\n📝 Missing summary detected for ${missingSummaryDate}, generating...`);
+      try {
+        const pastConversation = loadConversation(missingSummaryDate);
+        if (pastConversation.messages && pastConversation.messages.length > 0) {
+          const summary = await generateEndOfDaySummary(pastConversation.messages);
+          saveDaySummary(missingSummaryDate, summary);
+          console.log(`✅ Summary generated for ${missingSummaryDate}`);
+        } else {
+          console.log(`ℹ️  No messages found for ${missingSummaryDate}, skipping summary`);
+        }
+      } catch (error) {
+        console.error(`❌ Error generating summary for ${missingSummaryDate}:`, error.message);
+        // Continue anyway - we don't want to block the conversation
+      }
+    }
+    
     const conversation = getTodayConversation();
     res.json(conversation);
   } catch (error) {
@@ -170,11 +191,12 @@ app.listen(PORT, () => {
   console.log(`\n✨ Cassandra is waiting in her cabin...`);
   console.log(`🌙 API server running on http://localhost:${PORT}`);
   console.log(`\nAvailable endpoints:`);
-  console.log(`  GET  /api/cassandra/conversation - Get today's conversation`);
+  console.log(`  GET  /api/cassandra/conversation - Get today's conversation (auto-generates missing summaries)`);
   console.log(`  POST /api/cassandra/message - Send a message`);
   console.log(`  GET  /api/cassandra/state - Get current state`);
   console.log(`  GET  /api/cassandra/history - Get conversation history`);
-  console.log(`\nMake sure VITE_OPENAI_API_KEY is set in your .env file\n`);
+  console.log(`\nMake sure VITE_OPENAI_API_KEY is set in your .env file`);
+  console.log(`💡 Missing summaries will be auto-generated when you start a new conversation\n`);
 });
 
 export default app;

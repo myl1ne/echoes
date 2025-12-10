@@ -8,7 +8,9 @@
     "build": "vite build",
     "preview": "vite preview",
     "cassandra": "node cassandra/server.js",
-    "dev:all": "concurrently \"npm run dev\" \"npm run cassandra\""
+    "dev:all": "concurrently \"npm run dev\" \"npm run cassandra\"",
+    "cassandra:summary": "node cassandra/generate-summary.js",
+    "cassandra:test-summary": "node cassandra/test-auto-summary.js"
   },
   "keywords": [
     "digital-literature",

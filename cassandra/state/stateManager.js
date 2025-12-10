@@ -121,6 +121,45 @@ export function getRecentSummaries(days = 3) {
 }
 
 /**
+ * Check if a summary exists for a given date
+ */
+export function hasSummary(date) {
+  const summaries = loadSummaries();
+  return summaries.some(s => s.date === date);
+}
+
+/**
+ * Get the most recent conversation date that needs a summary
+ * Returns null if all conversations have summaries
+ */
+export function getMissingSummaryDate() {
+  const today = getToday();
+  const summaries = loadSummaries();
+  const summaryDates = new Set(summaries.map(s => s.date));
+  
+  // Import conversation list (we need to check which conversations exist)
+  const conversationsDir = path.join(__dirname, '..', 'conversations');
+  if (!fs.existsSync(conversationsDir)) {
+    return null;
+  }
+  
+  const conversationFiles = fs.readdirSync(conversationsDir)
+    .filter(f => f.endsWith('.json') && f !== 'conversationManager.js')
+    .map(f => f.replace('.json', ''))
+    .sort()
+    .reverse(); // Most recent first
+  
+  // Find the first conversation (excluding today) that doesn't have a summary
+  for (const date of conversationFiles) {
+    if (date !== today && !summaryDates.has(date)) {
+      return date;
+    }
+  }
+  
+  return null;
+}
+
+/**
  * Update state with new day's information
  */
 export function updateStateForNewDay(newState) {
