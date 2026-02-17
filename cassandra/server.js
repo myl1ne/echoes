@@ -8,10 +8,14 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import { sendMessage } from './cassandraService.js';
 import { 
-  getTodayConversation, 
+  getCurrentConversation,
+  createNewConversation,
   addMessage,
   listConversationDates,
-  loadConversation 
+  listTodayConversations,
+  loadConversation,
+  getAllMessagesForDate,
+  closeEpisode
 } from './conversations/conversationManager.js';
 import { 
   loadState, 
@@ -36,7 +40,7 @@ app.use(cors());
 app.use(express.json());
 
 /**
- * Get today's conversation
+ * Get current conversation (most recent or create new)
  * Auto-generates missing summaries from previous days
  */
 app.get('/api/cassandra/conversation', async (req, res) => {
@@ -46,9 +50,10 @@ app.get('/api/cassandra/conversation', async (req, res) => {
     if (missingSummaryDate) {
       console.log(`\n📝 Missing summary detected for ${missingSummaryDate}, generating...`);
       try {
-        const pastConversation = loadConversation(missingSummaryDate);
-        if (pastConversation.messages && pastConversation.messages.length > 0) {
-          const summary = await generateEndOfDaySummary(pastConversation.messages);
+        // Get all messages from all conversations on that date
+        const allMessages = getAllMessagesForDate(missingSummaryDate);
+        if (allMessages.length > 0) {
+          const summary = await generateEndOfDaySummary(allMessages);
           saveDaySummary(missingSummaryDate, summary);
           console.log(`✅ Summary generated for ${missingSummaryDate}`);
         } else {
@@ -60,7 +65,7 @@ app.get('/api/cassandra/conversation', async (req, res) => {
       }
     }
     
-    const conversation = getTodayConversation();
+    const conversation = getCurrentConversation();
     res.json(conversation);
   } catch (error) {
     console.error('Error loading conversation:', error);
@@ -73,21 +78,25 @@ app.get('/api/cassandra/conversation', async (req, res) => {
  */
 app.post('/api/cassandra/message', async (req, res) => {
   try {
-    const { messages } = req.body;
+    const { messages, conversationId } = req.body;
     
     if (!messages || !Array.isArray(messages)) {
       return res.status(400).json({ error: 'Messages array required' });
     }
     
-    // Get response from Cassandra
-    const response = await sendMessage(messages);
+    if (!conversationId) {
+      return res.status(400).json({ error: 'Conversation ID required' });
+    }
+    
+    // Get response from Cassandra (pass conversationId for within-day context)
+    const response = await sendMessage(messages, null, conversationId);
     
     // Save the conversation
     const lastUserMessage = messages[messages.length - 1];
     if (lastUserMessage && lastUserMessage.role === 'user') {
-      addMessage('user', lastUserMessage.content);
+      addMessage(conversationId, 'user', lastUserMessage.content);
     }
-    addMessage('assistant', response);
+    addMessage(conversationId, 'assistant', response);
     
     res.json({ response });
   } catch (error) {
@@ -96,6 +105,37 @@ app.post('/api/cassandra/message', async (req, res) => {
       error: 'Failed to send message',
       details: error.message 
     });
+  }
+});
+
+/**
+ * Create a new conversation episode
+ * Closes the current episode if provided
+ */
+app.post('/api/cassandra/new-episode', async (req, res) => {
+  try {
+    const { currentConversationId } = req.body;
+    
+    // Close the current episode if it exists
+    if (currentConversationId) {
+      try {
+        const currentConv = loadConversation(currentConversationId);
+        if (currentConv && currentConv.messages && currentConv.messages.length > 0) {
+          closeEpisode(currentConversationId, 'User started new episode');
+          console.log(`📝 Closed episode ${currentConversationId} with ${currentConv.messages.length} messages`);
+        }
+      } catch (error) {
+        console.error('Error closing current episode:', error);
+        // Continue anyway - don't block new episode creation
+      }
+    }
+    
+    const conversation = createNewConversation();
+    console.log(`✨ Created new episode: ${conversation.id}`);
+    res.json(conversation);
+  } catch (error) {
+    console.error('Error creating new conversation:', error);
+    res.status(500).json({ error: 'Failed to create new conversation' });
   }
 });
 
@@ -159,13 +199,14 @@ app.post('/api/cassandra/admin/start-day', async (req, res) => {
  */
 app.post('/api/cassandra/admin/end-day', async (req, res) => {
   try {
-    const conversation = getTodayConversation();
-    if (conversation.messages.length === 0) {
+    const today = new Date().toISOString().split('T')[0];
+    const allMessages = getAllMessagesForDate(today);
+    
+    if (allMessages.length === 0) {
       return res.json({ success: false, message: 'No conversation today' });
     }
     
-    const summary = await generateEndOfDaySummary(conversation.messages);
-    const today = new Date().toISOString().split('T')[0];
+    const summary = await generateEndOfDaySummary(allMessages);
     saveDaySummary(today, summary);
     
     res.json({ success: true, summary });

@@ -78,6 +78,36 @@
   letter-spacing: 0.5px;
 }
 
+.cassandra-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.cassandra-new-episode {
+  background: rgba(100, 100, 255, 0.15);
+  border: 1px solid rgba(100, 100, 255, 0.3);
+  color: rgba(200, 200, 255, 0.9);
+  padding: 8px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.cassandra-new-episode:hover:not(:disabled) {
+  background: rgba(100, 100, 255, 0.25);
+  border-color: rgba(100, 100, 255, 0.5);
+  color: rgba(220, 220, 255, 1);
+}
+
+.cassandra-new-episode:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 .cassandra-close {
   background: none;
   border: 1px solid rgba(255, 255, 255, 0.2);
@@ -91,6 +121,7 @@
   align-items: center;
   justify-content: center;
   transition: all 0.2s ease;
+  flex-shrink: 0;
 }
 
 .cassandra-close:hover {

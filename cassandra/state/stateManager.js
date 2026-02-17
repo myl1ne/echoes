@@ -144,13 +144,22 @@ export function getMissingSummaryDate() {
   }
   
   const conversationFiles = fs.readdirSync(conversationsDir)
-    .filter(f => f.endsWith('.json') && f !== 'conversationManager.js')
-    .map(f => f.replace('.json', ''))
-    .sort()
-    .reverse(); // Most recent first
+    .filter(f => f.endsWith('.json') && f !== 'conversationManager.js');
   
-  // Find the first conversation (excluding today) that doesn't have a summary
-  for (const date of conversationFiles) {
+  // Extract unique dates (YYYY-MM-DD) from conversation files
+  const dates = new Set();
+  conversationFiles.forEach(f => {
+    const parts = f.replace('.json', '').split('-');
+    if (parts.length >= 3) {
+      const date = `${parts[0]}-${parts[1]}-${parts[2]}`;
+      dates.add(date);
+    }
+  });
+  
+  const uniqueDates = Array.from(dates).sort().reverse();
+  
+  // Find the first date (excluding today) that doesn't have a summary
+  for (const date of uniqueDates) {
     if (date !== today && !summaryDates.has(date)) {
       return date;
     }

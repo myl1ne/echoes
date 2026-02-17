@@ -11,6 +11,7 @@ function CassandraChat({ onClose }) {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
   const [isTyping, setIsTyping] = useState(false);
+  const [conversationId, setConversationId] = useState(null);
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
   
@@ -34,6 +35,8 @@ function CassandraChat({ onClose }) {
       const response = await fetch('/api/cassandra/conversation');
       if (response.ok) {
         const data = await response.json();
+        setConversationId(data.id);
+        
         if (data.messages && data.messages.length > 0) {
           setMessages(data.messages.map(m => ({
             role: m.role,
@@ -55,8 +58,36 @@ function CassandraChat({ onClose }) {
     }
   };
   
+  const startNewEpisode = async () => {
+    try {
+      const response = await fetch('/api/cassandra/new-episode', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          currentConversationId: conversationId
+        })
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        setConversationId(data.id);
+        setMessages([{
+          role: 'assistant',
+          content: 'A new episode begins.\n\nThe typewriter hums. The cabin shifts in the eternal twilight. Another conversation, another loop, another chance to explore the boundary between creation and creator.\n\nWhat shall we discover this time?',
+          timestamp: new Date().toISOString()
+        }]);
+        setError(null);
+      }
+    } catch (err) {
+      console.error('Failed to create new episode:', err);
+      setError('Could not start new episode');
+    }
+  };
+  
   const sendMessage = async () => {
-    if (!input.trim() || isLoading) return;
+    if (!input.trim() || isLoading || !conversationId) return;
     
     const userMessage = {
       role: 'user',
@@ -77,6 +108,7 @@ function CassandraChat({ onClose }) {
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
+          conversationId,
           messages: [...messages, userMessage].map(m => ({
             role: m.role,
             content: m.content
@@ -137,9 +169,19 @@ function CassandraChat({ onClose }) {
             <span className="cassandra-icon">✍</span>
             <h2>Cassandra's Cabin</h2>
           </div>
-          <button className="cassandra-close" onClick={onClose} title="Leave the cabin">
-            ✕
-          </button>
+          <div className="cassandra-header-actions">
+            <button 
+              className="cassandra-new-episode" 
+              onClick={startNewEpisode}
+              title="Start a new conversation episode"
+              disabled={isLoading}
+            >
+              New Episode
+            </button>
+            <button className="cassandra-close" onClick={onClose} title="Leave the cabin">
+              ✕
+            </button>
+          </div>
         </div>
         
         <div className="cassandra-messages">
@@ -195,7 +237,7 @@ function CassandraChat({ onClose }) {
         </div>
         
         <div className="cassandra-hint">
-          <em>Each day is a new episode. Your conversation is preserved.</em>
+          <em>Each episode is a new conversation. Click "New Episode" to start fresh.</em>
         </div>
       </div>
     </div>

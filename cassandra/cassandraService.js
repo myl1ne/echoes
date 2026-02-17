@@ -122,12 +122,37 @@ function getChatModel() {
  * Send a message to Cassandra and get a response
  * @param {Array} messages - Conversation history
  * @param {Function} onChunk - Optional callback for streaming chunks
+ * @param {string} currentConversationId - Current conversation ID for context
  * @returns {Promise<string>} - Complete response
  */
-export async function sendMessage(messages, onChunk = null) {
+export async function sendMessage(messages, onChunk = null, currentConversationId = null) {
   const client = getOpenAIClient();
-  const systemPrompt = getSystemPrompt();
+  let systemPrompt = getSystemPrompt();
   const model = getChatModel();
+  
+  // Add today's episode context if this isn't the first episode
+  if (currentConversationId) {
+    const today = new Date().toISOString().split('T')[0];
+    const { getAllMessagesForDate } = await import('./conversations/conversationManager.js');
+    const todaysMessages = getAllMessagesForDate(today);
+    
+    // Filter out messages from the current conversation (they're already in `messages`)
+    const previousEpisodeMessages = todaysMessages.filter(msg => {
+      // Check if this message is NOT in the current conversation
+      return !messages.some(m => 
+        m.content === msg.content && 
+        Math.abs(new Date(m.timestamp) - new Date(msg.timestamp)) < 1000
+      );
+    });
+    
+    if (previousEpisodeMessages.length > 0) {
+      systemPrompt += `\n\n## Earlier Today\n\nYou've already had conversation(s) today. Here's what was discussed:\n\n`;
+      previousEpisodeMessages.forEach(msg => {
+        const preview = msg.content.substring(0, 200);
+        systemPrompt += `**${msg.role}**: ${preview}${msg.content.length > 200 ? '...' : ''}\n\n`;
+      });
+    }
+  }
   
   const fullMessages = [
     { role: 'system', content: systemPrompt },

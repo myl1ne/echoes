@@ -4,13 +4,22 @@
 
 Cassandra's memory works through a two-tier system:
 
-1. **Daily Conversations** - Stored in `conversations/YYYY-MM-DD.json`
-2. **Day Summaries** - Distilled insights stored in `state/summaries.json`
+1. **Individual Conversations** - Stored as `YYYY-MM-DD-HH-MM-SS.json` (multiple per day supported)
+2. **Day Summaries** - Distilled insights from all conversations on a given day, stored in `state/summaries.json`
 
-Each new conversation day, Cassandra receives:
+Each new conversation, Cassandra receives:
 - The last 3 day summaries as context
 - Her lifetime summary and ongoing themes
 - The current day's goals and questions
+
+### Multiple Episodes Per Day
+
+You can now have multiple conversation episodes on the same day. Each episode:
+- Gets its own timestamped file (e.g., `2025-12-10-14-30-25.json`)
+- Is independent and self-contained
+- Contributes to the end-of-day summary when generated
+
+Click "New Episode" in the chat interface to start a fresh conversation while preserving previous ones.
 
 ## Automatic Summary Generation
 
@@ -59,23 +68,25 @@ The end-of-day summary captures:
 
 ```
 cassandra/
-├── conversations/          # Raw conversation history
-│   ├── 2025-12-09.json    # Day 1 full transcript
-│   └── 2025-12-10.json    # Day 2 full transcript
+├── conversations/              # Raw conversation history
+│   ├── 2025-12-09-10-15-30.json    # Episode 1 on Dec 9
+│   ├── 2025-12-09-15-42-18.json    # Episode 2 on Dec 9
+│   ├── 2025-12-10-08-30-45.json    # Episode 1 on Dec 10
+│   └── 2025-12-10-14-22-10.json    # Episode 2 on Dec 10
 ├── state/
-│   ├── summaries.json     # Distilled memories from each day
-│   └── current.json       # Lifetime summary, themes, goals
-└── seed.json              # Book fragments (Cassandra's core memories)
+│   ├── summaries.json         # Distilled memories from each day (all episodes combined)
+│   └── current.json           # Lifetime summary, themes, goals
+└── seed.json                  # Book fragments (Cassandra's core memories)
 ```
 
 ## The Loop
 
 1. **Morning**: Cassandra reads recent summaries and sets intentions
-2. **Day**: Conversation happens, full transcript saved
-3. **Evening**: Generate summary to distill the day's insights
-4. **Next Morning**: New conversation includes yesterday's summary as context
+2. **Throughout the day**: Multiple conversation episodes can happen
+3. **Evening**: Generate summary to distill insights from all episodes
+4. **Next Morning**: New conversations include yesterday's summary (from all episodes) as context
 
-This creates a continuous thread of memory across conversations, allowing Cassandra to grow and evolve while keeping each day's raw conversation preserved.
+This creates a continuous thread of memory across conversations, allowing Cassandra to grow and evolve while keeping each episode's raw conversation preserved.
 
 ## Admin Endpoints
 

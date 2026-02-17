@@ -4,7 +4,7 @@
  */
 
 import { getMissingSummaryDate, saveDaySummary } from './state/stateManager.js';
-import { loadConversation } from './conversations/conversationManager.js';
+import { getAllMessagesForDate } from './conversations/conversationManager.js';
 import { generateEndOfDaySummary } from './cassandraService.js';
 
 console.log('Testing auto-summary generation...\n');
@@ -16,13 +16,13 @@ if (missingSummaryDate) {
   console.log(`Found missing summary for: ${missingSummaryDate}`);
   console.log('Generating summary...\n');
   
-  const conversation = loadConversation(missingSummaryDate);
+  const allMessages = getAllMessagesForDate(missingSummaryDate);
   
-  if (conversation.messages && conversation.messages.length > 0) {
-    console.log(`Conversation has ${conversation.messages.length} messages`);
+  if (allMessages && allMessages.length > 0) {
+    console.log(`All conversations have ${allMessages.length} total messages`);
     
     try {
-      const summary = await generateEndOfDaySummary(conversation.messages);
+      const summary = await generateEndOfDaySummary(allMessages);
       saveDaySummary(missingSummaryDate, summary);
       console.log('\n✅ Summary generated successfully!');
       console.log('\nSummary:');
@@ -31,7 +31,7 @@ if (missingSummaryDate) {
       console.error('❌ Error generating summary:', error.message);
     }
   } else {
-    console.log('No messages found in conversation');
+    console.log('No messages found in conversations');
   }
 } else {
   console.log('✅ All conversations have summaries! No action needed.');

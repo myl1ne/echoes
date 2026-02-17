@@ -10,7 +10,9 @@
     "cassandra": "node cassandra/server.js",
     "dev:all": "concurrently \"npm run dev\" \"npm run cassandra\"",
     "cassandra:summary": "node cassandra/generate-summary.js",
-    "cassandra:test-summary": "node cassandra/test-auto-summary.js"
+    "cassandra:test-summary": "node cassandra/test-auto-summary.js",
+    "cassandra:list": "node cassandra/list-conversations.js",
+    "parse-fragments": "node parse-fragments.js"
   },
   "keywords": [
     "digital-literature",
@@ -32,6 +34,7 @@
   "devDependencies": {
     "@vitejs/plugin-react": "^5.1.0",
     "concurrently": "^9.2.1",
+    "mammoth": "^1.11.0",
     "vite": "^7.1.12"
   },
   "dependencies": {
