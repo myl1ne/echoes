@@ -130,6 +130,88 @@
   border-color: rgba(255, 255, 255, 0.4);
 }
 
+/* Visitor name in header */
+.cassandra-visitor-name {
+  font-size: 0.9rem;
+  font-weight: 400;
+  color: rgba(200, 200, 255, 0.6);
+  font-style: italic;
+}
+
+/* First-visit name prompt */
+.cassandra-name-prompt {
+  padding: 16px 24px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(30, 30, 50, 0.4);
+  animation: fadeIn 0.5s ease-out;
+}
+
+.name-prompt-text {
+  margin: 0 0 10px 0;
+  font-size: 0.9rem;
+  color: rgba(200, 200, 255, 0.7);
+  font-style: italic;
+}
+
+.name-prompt-controls {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.name-prompt-input {
+  flex: 1;
+  background: rgba(20, 20, 30, 0.6);
+  border: 1px solid rgba(100, 100, 200, 0.25);
+  border-radius: 6px;
+  padding: 8px 12px;
+  color: rgba(255, 255, 255, 0.9);
+  font-family: inherit;
+  font-size: 0.9rem;
+  transition: border-color 0.2s ease;
+}
+
+.name-prompt-input:focus {
+  outline: none;
+  border-color: rgba(100, 140, 200, 0.5);
+}
+
+.name-prompt-input::placeholder {
+  color: rgba(255, 255, 255, 0.3);
+  font-style: italic;
+}
+
+.name-prompt-btn {
+  background: none;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: rgba(255, 255, 255, 0.7);
+  padding: 8px 14px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 0.85rem;
+  transition: all 0.2s ease;
+}
+
+.name-prompt-enter:not(:disabled) {
+  border-color: rgba(100, 100, 255, 0.3);
+  color: rgba(200, 200, 255, 0.9);
+}
+
+.name-prompt-enter:hover:not(:disabled) {
+  background: rgba(100, 100, 255, 0.15);
+}
+
+.name-prompt-enter:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.name-prompt-skip:hover {
+  background: rgba(255, 255, 255, 0.05);
+  color: rgba(255, 255, 255, 0.9);
+}
+
 .cassandra-messages {
   flex: 1;
   overflow-y: auto;

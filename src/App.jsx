@@ -649,8 +649,9 @@ function App() {
 
       {/* Cassandra Chat - Hidden Interface */}
       {showCassandra && (
-        <CassandraChat 
+        <CassandraChat
           onClose={() => setShowCassandra(false)}
+          currentFragmentId={currentFragment?.id}
         />
       )}
 

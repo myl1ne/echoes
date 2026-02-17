@@ -129,42 +129,55 @@ export function hasSummary(date) {
 }
 
 /**
- * Get the most recent conversation date that needs a summary
- * Returns null if all conversations have summaries
+ * Get missing summary info: { visitorId, date } pairs that need summaries.
+ * Scans all visitor conversation directories.
+ * Returns the first missing entry, or null if all are summarized.
  */
 export function getMissingSummaryDate() {
   const today = getToday();
   const summaries = loadSummaries();
   const summaryDates = new Set(summaries.map(s => s.date));
-  
-  // Import conversation list (we need to check which conversations exist)
+
   const conversationsDir = path.join(__dirname, '..', 'conversations');
   if (!fs.existsSync(conversationsDir)) {
     return null;
   }
-  
-  const conversationFiles = fs.readdirSync(conversationsDir)
-    .filter(f => f.endsWith('.json') && f !== 'conversationManager.js');
-  
-  // Extract unique dates (YYYY-MM-DD) from conversation files
+
+  const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+  // Scan visitor directories
+  const entries = fs.readdirSync(conversationsDir);
   const dates = new Set();
-  conversationFiles.forEach(f => {
-    const parts = f.replace('.json', '').split('-');
-    if (parts.length >= 3) {
-      const date = `${parts[0]}-${parts[1]}-${parts[2]}`;
-      dates.add(date);
+
+  for (const entry of entries) {
+    const fullPath = path.join(conversationsDir, entry);
+
+    if (UUID_REGEX.test(entry) && fs.statSync(fullPath).isDirectory()) {
+      // Visitor directory — scan for conversation files
+      const files = fs.readdirSync(fullPath).filter(f => f.endsWith('.json'));
+      for (const f of files) {
+        const parts = f.replace('.json', '').split('-');
+        if (parts.length >= 3) {
+          dates.add(`${parts[0]}-${parts[1]}-${parts[2]}`);
+        }
+      }
+    } else if (entry.endsWith('.json') && entry !== '.gitkeep') {
+      // Legacy root-level conversation file
+      const parts = entry.replace('.json', '').split('-');
+      if (parts.length >= 3) {
+        dates.add(`${parts[0]}-${parts[1]}-${parts[2]}`);
+      }
     }
-  });
-  
+  }
+
   const uniqueDates = Array.from(dates).sort().reverse();
-  
-  // Find the first date (excluding today) that doesn't have a summary
+
   for (const date of uniqueDates) {
     if (date !== today && !summaryDates.has(date)) {
       return date;
     }
   }
-  
+
   return null;
 }
 

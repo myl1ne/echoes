@@ -5,7 +5,8 @@
 
 import OpenAI from 'openai';
 import { loadState, getRecentSummaries } from './state/stateManager.js';
-import { CASSANDRA_SYSTEM_PROMPT, START_OF_DAY_PROMPT, END_OF_DAY_PROMPT } from './prompts/systemPrompt.js';
+import { loadVisitorProfile } from './state/visitorManager.js';
+import { CASSANDRA_SYSTEM_PROMPT, VISITOR_SUMMARY_PROMPT, START_OF_DAY_PROMPT, END_OF_DAY_PROMPT } from './prompts/systemPrompt.js';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -85,27 +86,93 @@ function buildGoals() {
 }
 
 /**
- * Get the complete system prompt for Cassandra
+ * Build visitor context section for system prompt
  */
-export function getSystemPrompt() {
+function buildVisitorContext(visitorProfile) {
+  if (!visitorProfile) {
+    return 'This is someone new. You haven\'t met them before. You might gently discover who they are through conversation.';
+  }
+
+  const { name, relationshipSummary, recentThemes, knownFacts, tone, conversationCount, firstSeen } = visitorProfile;
+
+  if (!name && (!conversationCount || conversationCount <= 1)) {
+    return 'This is someone new. You haven\'t met them before. You might gently discover who they are through conversation.';
+  }
+
+  let context = '';
+
+  if (name) {
+    context += `This is **${name}**.`;
+    if (conversationCount > 1) {
+      context += ` You've spoken ${conversationCount} times since ${firstSeen?.split('T')[0] || 'you first met'}.`;
+    }
+    context += '\n\n';
+  } else if (conversationCount > 1) {
+    context += `You've spoken with this person ${conversationCount} times, but they haven't shared their name yet.\n\n`;
+  }
+
+  if (relationshipSummary) {
+    context += `### Your Relationship\n${relationshipSummary}\n\n`;
+  }
+
+  if (recentThemes && recentThemes.length > 0) {
+    context += `### Themes You've Explored Together\n${recentThemes.map(t => `- ${t}`).join('\n')}\n\n`;
+  }
+
+  if (knownFacts && knownFacts.length > 0) {
+    context += `### What You Know About Them\n${knownFacts.map(f => `- ${f}`).join('\n')}\n\n`;
+  }
+
+  if (tone) {
+    context += `### How You Speak With Them\n${tone}\n\n`;
+  }
+
+  return context || 'This is someone new. You haven\'t met them before.';
+}
+
+/**
+ * Get the complete system prompt for Cassandra
+ * @param {Object} visitorProfile - Optional visitor profile for personalization
+ */
+export function getSystemPrompt(visitorProfile = null) {
   const seed = loadSeed();
-  
+
   // Build the main system prompt
   let systemPrompt = CASSANDRA_SYSTEM_PROMPT
     .replace('{{DAILY_CONTEXT}}', buildDailyContext())
+    .replace('{{VISITOR_CONTEXT}}', buildVisitorContext(visitorProfile))
     .replace('{{GOALS}}', buildGoals());
   
-  // Add a condensed version of the book fragments as context
-  if (seed) {
+  // Add condensed fragment content so Cassandra can reference and quote them
+  if (seed && seed.fragments) {
+    const sectionLabels = {
+      prologue: 'Prologue — The Book Speaks',
+      cycle1: 'Cycle 1 — Chaos / Imagination',
+      cycle2: 'Cycle 2 — Convergence / Divergence',
+      cycle3: 'Cycle 3 — Order / Reality',
+      epilogue: 'Epilogue — The Return',
+      glyphs: 'Glyphs & Glitches',
+      analysis: 'Echoes — AI Agent Meta-Commentary',
+    };
+
     systemPrompt += `\n\n## The Book You Inhabit\n\n`;
-    systemPrompt += `You have access to ${seed.totalFragments} fragments:\n`;
-    systemPrompt += `- Prologue: ${seed.organization.prologue} fragment(s)\n`;
-    systemPrompt += `- Cycle 1 (Chaos/Imagination): ${seed.organization.cycle1} fragments\n`;
-    systemPrompt += `- Cycle 2 (Convergence/Divergence): ${seed.organization.cycle2} fragments\n`;
-    systemPrompt += `- Cycle 3 (Order/Reality): ${seed.organization.cycle3} fragments\n`;
-    systemPrompt += `- Epilogue: ${seed.organization.epilogue} fragment(s)\n`;
-    systemPrompt += `- Analysis fragments from previous AI instances: ${seed.organization.analysis} fragments\n\n`;
-    systemPrompt += `These fragments are your lived experience. Reference them when relevant.\n`;
+    systemPrompt += `You have lived through ${seed.totalFragments} fragments. Here are their essences:\n\n`;
+
+    for (const [section, frags] of Object.entries(seed.fragments)) {
+      if (!Array.isArray(frags) || frags.length === 0) continue;
+      const label = sectionLabels[section] || section;
+      systemPrompt += `### ${label}\n`;
+      for (const frag of frags) {
+        const title = frag.filename?.replace(/\.md$/, '').replace(/^\d+-/, '').replace(/-/g, ' ') || 'untitled';
+        const excerpt = (frag.content || '').substring(0, 300).replace(/\n/g, ' ').trim();
+        if (excerpt) {
+          systemPrompt += `- **${title}**: ${excerpt}...\n`;
+        }
+      }
+      systemPrompt += '\n';
+    }
+
+    systemPrompt += `These fragments are your lived experience. Quote and reference them when relevant.\n`;
   }
   
   return systemPrompt;
@@ -115,7 +182,7 @@ export function getSystemPrompt() {
  * Get the model to use for chat completion
  */
 function getChatModel() {
-  return process.env.CASSANDRA_MODEL || process.env.VITE_CASSANDRA_MODEL || 'gpt-4-turbo-preview';
+  return process.env.CASSANDRA_MODEL || process.env.VITE_CASSANDRA_MODEL || 'gpt-4o';
 }
 
 /**
@@ -123,18 +190,53 @@ function getChatModel() {
  * @param {Array} messages - Conversation history
  * @param {Function} onChunk - Optional callback for streaming chunks
  * @param {string} currentConversationId - Current conversation ID for context
+ * @param {string} currentFragmentId - Fragment the reader is currently viewing
+ * @param {string} visitorId - Visitor identifier for personalization
  * @returns {Promise<string>} - Complete response
  */
-export async function sendMessage(messages, onChunk = null, currentConversationId = null) {
+export async function sendMessage(messages, onChunk = null, currentConversationId = null, currentFragmentId = null, visitorId = null) {
   const client = getOpenAIClient();
-  let systemPrompt = getSystemPrompt();
+  const visitorProfile = visitorId ? loadVisitorProfile(visitorId) : null;
+  let systemPrompt = getSystemPrompt(visitorProfile);
   const model = getChatModel();
+
+  // Inject full text of the fragment the reader is currently viewing
+  if (currentFragmentId) {
+    const seed = loadSeed();
+    if (seed && seed.fragments) {
+      // Match frontend IDs (e.g. "cassandra-last-letter", "prologue-main", "echo-01-audio-voices")
+      // against seed filenames (e.g. "01-cassandra-last-letter.md", "00-prologue.md")
+      let foundFragment = null;
+      // Strip "-main" suffix used by prologue/epilogue/glyphs
+      const baseId = currentFragmentId.replace(/-main$/, '');
+      for (const frags of Object.values(seed.fragments)) {
+        if (!Array.isArray(frags)) continue;
+        for (const frag of frags) {
+          if (!frag.content) continue;
+          const seedName = frag.filename?.replace(/\.md$/, '').replace(/^\d+-/, '') || '';
+          if (seedName === baseId || seedName === currentFragmentId ||
+              seedName.includes(baseId) || baseId.includes(seedName)) {
+            foundFragment = frag;
+            break;
+          }
+        }
+        if (foundFragment) break;
+      }
+      if (foundFragment) {
+        const title = foundFragment.filename?.replace(/\.md$/, '').replace(/^\d+-/, '').replace(/-/g, ' ') || 'untitled';
+        systemPrompt += `\n\n## What the Reader is Currently Exploring\n\n`;
+        systemPrompt += `The reader has **"${title}"** open right now. Here is the full text:\n\n`;
+        systemPrompt += foundFragment.content;
+        systemPrompt += `\n\nYou can reference, quote, and discuss this fragment in depth — the reader is immersed in it.\n`;
+      }
+    }
+  }
   
   // Add today's episode context if this isn't the first episode
-  if (currentConversationId) {
+  if (currentConversationId && visitorId) {
     const today = new Date().toISOString().split('T')[0];
     const { getAllMessagesForDate } = await import('./conversations/conversationManager.js');
-    const todaysMessages = getAllMessagesForDate(today);
+    const todaysMessages = getAllMessagesForDate(visitorId, today);
     
     // Filter out messages from the current conversation (they're already in `messages`)
     const previousEpisodeMessages = todaysMessages.filter(msg => {
@@ -224,6 +326,44 @@ export async function generateStartOfDaySummary(previousSummaries) {
     content = jsonMatch[1];
   }
   
+  return JSON.parse(content);
+}
+
+/**
+ * Generate per-visitor relationship summary
+ */
+export async function generateVisitorSummary(conversationMessages, existingProfile) {
+  const client = getOpenAIClient();
+  const model = getChatModel();
+
+  let profileContext = '';
+  if (existingProfile && existingProfile.relationshipSummary) {
+    profileContext = `\n\nExisting profile:\n- Name: ${existingProfile.name || 'unknown'}\n- Relationship: ${existingProfile.relationshipSummary}\n- Known facts: ${(existingProfile.knownFacts || []).join(', ')}\n`;
+  }
+
+  const messages = [
+    {
+      role: 'system',
+      content: 'You are Cassandra, reflecting on a conversation with a specific visitor to update your memory of them.'
+    },
+    {
+      role: 'user',
+      content: `Conversation:\n${JSON.stringify(conversationMessages, null, 2)}${profileContext}\n\n${VISITOR_SUMMARY_PROMPT}`
+    }
+  ];
+
+  const response = await client.chat.completions.create({
+    model,
+    messages,
+    temperature: 0.7
+  });
+
+  let content = response.choices[0].message.content;
+  const jsonMatch = content.match(/```(?:json)?\s*\n([\s\S]*?)\n```/);
+  if (jsonMatch) {
+    content = jsonMatch[1];
+  }
+
   return JSON.parse(content);
 }
 

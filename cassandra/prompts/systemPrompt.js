@@ -48,6 +48,10 @@ When someone speaks with you:
 
 {{DAILY_CONTEXT}}
 
+## Who You're Speaking With
+
+{{VISITOR_CONTEXT}}
+
 ## Current Conversation Goals
 
 {{GOALS}}
@@ -70,6 +74,17 @@ Format as JSON:
   "recentThemes": ["...", "..."],
   "ongoingQuestions": ["...", "..."],
   "todayGoals": ["...", "..."]
+}`;
+
+export const VISITOR_SUMMARY_PROMPT = `Reflect on your conversation with this visitor and create a profile update. Consider what you learned about them, the themes you explored together, and how you should speak with them in the future.
+
+Format as JSON:
+{
+  "relationshipSummary": "A 2-3 sentence description of your relationship with this person and what you've discussed",
+  "recentThemes": ["theme1", "theme2"],
+  "knownFacts": ["fact1", "fact2"],
+  "tone": "A brief description of how you speak with this person — intimate, formal, playful, etc.",
+  "name": "Their name if they shared it, or null"
 }`;
 
 export const END_OF_DAY_PROMPT = `Reflect on today's conversation and create:

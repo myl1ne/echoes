@@ -1,20 +1,61 @@
 /**
  * Conversation storage and management
- * Multiple conversations per day supported
- * Format: YYYY-MM-DD-HH-MM-SS.json
+ * Multiple conversations per day supported, scoped by visitor
+ * Format: conversations/{visitorId}/YYYY-MM-DD-HH-MM-SS.json
  */
 
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { validateVisitorId } from '../state/visitorManager.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const CONVERSATIONS_DIR = path.join(__dirname, '..', 'conversations');
+const CONVERSATIONS_DIR = path.join(__dirname);
 
 /**
- * Ensure conversations directory exists
+ * Validate conversation ID format to prevent path traversal attacks.
+ * IDs must match YYYY-MM-DD-HH-MM-SS format.
+ */
+function validateConversationId(id) {
+  if (!id || typeof id !== 'string' || !/^\d{4}-\d{2}-\d{2}-\d{2}-\d{2}-\d{2}$/.test(id)) {
+    throw new Error(`Invalid conversation ID format: ${id}`);
+  }
+  return id;
+}
+
+/**
+ * Validate date format (YYYY-MM-DD) for date-based lookups.
+ */
+function validateDate(date) {
+  if (!date || typeof date !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+    throw new Error(`Invalid date format: ${date}`);
+  }
+  return date;
+}
+
+/**
+ * Get visitor-scoped conversations directory
+ */
+function getVisitorDir(visitorId) {
+  validateVisitorId(visitorId);
+  return path.join(CONVERSATIONS_DIR, visitorId);
+}
+
+/**
+ * Ensure visitor conversations directory exists
+ */
+function ensureVisitorDirectory(visitorId) {
+  const dir = getVisitorDir(visitorId);
+  if (!fs.existsSync(dir)) {
+    fs.mkdirSync(dir, { recursive: true });
+  }
+  return dir;
+}
+
+/**
+ * Ensure base conversations directory exists (for legacy compat)
  */
 function ensureConversationsDirectory() {
   if (!fs.existsSync(CONVERSATIONS_DIR)) {
@@ -40,30 +81,31 @@ function generateConversationId() {
 }
 
 /**
- * Get conversation file path
+ * Get conversation file path (visitor-scoped)
  */
-function getConversationPath(conversationId) {
-  return path.join(CONVERSATIONS_DIR, `${conversationId}.json`);
+function getConversationPath(visitorId, conversationId) {
+  validateConversationId(conversationId);
+  const dir = ensureVisitorDirectory(visitorId);
+  return path.join(dir, `${conversationId}.json`);
 }
 
 /**
  * Load conversation by ID
  */
-export function loadConversation(conversationId) {
-  ensureConversationsDirectory();
-  
-  const filePath = getConversationPath(conversationId);
-  
+export function loadConversation(visitorId, conversationId) {
+  const filePath = getConversationPath(visitorId, conversationId);
+
   if (!fs.existsSync(filePath)) {
     return {
       id: conversationId,
+      visitorId,
       date: conversationId.split('-').slice(0, 3).join('-'),
       messages: [],
       startTime: new Date().toISOString(),
       lastMessageTime: null
     };
   }
-  
+
   try {
     const data = fs.readFileSync(filePath, 'utf-8');
     return JSON.parse(data);
@@ -71,6 +113,7 @@ export function loadConversation(conversationId) {
     console.error('Error loading conversation:', error);
     return {
       id: conversationId,
+      visitorId,
       date: conversationId.split('-').slice(0, 3).join('-'),
       messages: [],
       startTime: new Date().toISOString(),
@@ -83,166 +126,177 @@ export function loadConversation(conversationId) {
 /**
  * Save conversation
  */
-export function saveConversation(conversation) {
-  ensureConversationsDirectory();
-  
-  const filePath = getConversationPath(conversation.id);
-  
+export function saveConversation(visitorId, conversation) {
+  const filePath = getConversationPath(visitorId, conversation.id);
+
   const conversationToSave = {
     ...conversation,
+    visitorId,
     lastMessageTime: new Date().toISOString()
   };
-  
+
   fs.writeFileSync(filePath, JSON.stringify(conversationToSave, null, 2));
 }
 
 /**
  * Close an episode (mark as completed, optionally add notes)
  */
-export function closeEpisode(conversationId, notes = null) {
-  const conversation = loadConversation(conversationId);
-  
+export function closeEpisode(visitorId, conversationId, notes = null) {
+  const conversation = loadConversation(visitorId, conversationId);
+
   conversation.closed = true;
   conversation.closedAt = new Date().toISOString();
   if (notes) {
     conversation.closingNotes = notes;
   }
-  
-  saveConversation(conversation);
+
+  saveConversation(visitorId, conversation);
   return conversation;
 }
 
 /**
- * Create a new conversation
+ * Create a new conversation for a visitor
  */
-export function createNewConversation() {
+export function createNewConversation(visitorId) {
+  validateVisitorId(visitorId);
   const id = generateConversationId();
   const conversation = {
     id,
+    visitorId,
     date: getToday(),
     messages: [],
     startTime: new Date().toISOString(),
     lastMessageTime: null
   };
-  
-  saveConversation(conversation);
+
+  saveConversation(visitorId, conversation);
   return conversation;
 }
 
 /**
  * Add a message to a conversation
  */
-export function addMessage(conversationId, role, content) {
-  const conversation = loadConversation(conversationId);
-  
+export function addMessage(visitorId, conversationId, role, content) {
+  const conversation = loadConversation(visitorId, conversationId);
+
   conversation.messages.push({
     role,
     content,
     timestamp: new Date().toISOString()
   });
-  
-  saveConversation(conversation);
-  
+
+  saveConversation(visitorId, conversation);
+
   return conversation;
 }
 
 /**
- * Get the most recent conversation (today or create new)
+ * Get the most recent conversation for a visitor (today or create new)
  */
-export function getCurrentConversation() {
-  const conversations = listTodayConversations();
-  
+export function getCurrentConversation(visitorId) {
+  validateVisitorId(visitorId);
+  const conversations = listTodayConversations(visitorId);
+
   if (conversations.length > 0) {
-    // Return the most recent conversation
-    return loadConversation(conversations[0]);
+    return loadConversation(visitorId, conversations[0]);
   }
-  
-  // Create a new conversation
-  return createNewConversation();
+
+  return createNewConversation(visitorId);
 }
 
 /**
- * List all conversations for today
+ * List all conversations for a visitor today
  */
-export function listTodayConversations() {
-  ensureConversationsDirectory();
+export function listTodayConversations(visitorId) {
+  validateVisitorId(visitorId);
+  const dir = ensureVisitorDirectory(visitorId);
   const today = getToday();
-  
-  const files = fs.readdirSync(CONVERSATIONS_DIR);
-  const todayConversations = files
+
+  const files = fs.readdirSync(dir);
+  return files
     .filter(f => f.endsWith('.json') && f.startsWith(today))
     .map(f => f.replace('.json', ''))
     .sort()
-    .reverse(); // Most recent first
-  
-  return todayConversations;
+    .reverse();
 }
 
 /**
- * List all conversations for a specific date
+ * List all conversations for a visitor on a specific date
  */
-export function listConversationsForDate(date) {
-  ensureConversationsDirectory();
-  
-  const files = fs.readdirSync(CONVERSATIONS_DIR);
-  const dateConversations = files
+export function listConversationsForDate(visitorId, date) {
+  validateVisitorId(visitorId);
+  validateDate(date);
+  const dir = ensureVisitorDirectory(visitorId);
+
+  const files = fs.readdirSync(dir);
+  return files
     .filter(f => f.endsWith('.json') && f.startsWith(date))
     .map(f => f.replace('.json', ''))
     .sort()
     .reverse();
-  
-  return dateConversations;
 }
 
 /**
- * List all conversation dates
+ * List all conversation dates for a visitor
  */
-export function listConversationDates() {
-  ensureConversationsDirectory();
-  
-  const files = fs.readdirSync(CONVERSATIONS_DIR);
+export function listConversationDates(visitorId) {
+  validateVisitorId(visitorId);
+  const dir = ensureVisitorDirectory(visitorId);
+
+  const files = fs.readdirSync(dir);
   const dates = new Set();
-  
+
   files
     .filter(f => f.endsWith('.json'))
     .forEach(f => {
-      // Extract YYYY-MM-DD from filename
       const parts = f.replace('.json', '').split('-');
       if (parts.length >= 3) {
         dates.add(`${parts[0]}-${parts[1]}-${parts[2]}`);
       }
     });
-  
+
   return Array.from(dates).sort().reverse();
 }
 
 /**
- * Get all messages from all conversations on a given date
+ * Get all messages from all conversations for a visitor on a given date
  */
-export function getAllMessagesForDate(date) {
-  const conversationIds = listConversationsForDate(date);
+export function getAllMessagesForDate(visitorId, date) {
+  const conversationIds = listConversationsForDate(visitorId, date);
   const allMessages = [];
-  
+
   conversationIds.forEach(id => {
-    const conversation = loadConversation(id);
+    const conversation = loadConversation(visitorId, id);
     if (conversation.messages) {
       allMessages.push(...conversation.messages);
     }
   });
-  
-  // Sort by timestamp
-  allMessages.sort((a, b) => {
-    return new Date(a.timestamp) - new Date(b.timestamp);
-  });
-  
+
+  allMessages.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+
   return allMessages;
 }
 
 /**
- * Get conversation count
+ * Get conversation count for a visitor
  */
-export function getConversationCount() {
-  ensureConversationsDirectory();
-  const files = fs.readdirSync(CONVERSATIONS_DIR);
+export function getConversationCount(visitorId) {
+  validateVisitorId(visitorId);
+  const dir = ensureVisitorDirectory(visitorId);
+  const files = fs.readdirSync(dir);
   return files.filter(f => f.endsWith('.json')).length;
+}
+
+/**
+ * List all visitor IDs that have conversations
+ */
+export function listVisitorIdsWithConversations() {
+  ensureConversationsDirectory();
+  const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  return fs.readdirSync(CONVERSATIONS_DIR)
+    .filter(entry => {
+      if (!UUID_REGEX.test(entry)) return false;
+      const fullPath = path.join(CONVERSATIONS_DIR, entry);
+      return fs.statSync(fullPath).isDirectory();
+    });
 }

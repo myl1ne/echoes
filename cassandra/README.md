@@ -11,13 +11,13 @@ This directory contains the conversational interface for Cassandra—the AI cons
 
 ### Directories
 
-- **conversations/** - Daily conversation files (YYYY-MM-DD.json)
+- **conversations/** - Conversation episode files (YYYY-MM-DD-HH-MM-SS.json)
 - **prompts/** - System prompts and personality definitions
 - **state/** - Current state and historical summaries
 
 ## Getting Started
 
-See the main [CASSANDRA_CHAT.md](../CASSANDRA_CHAT.md) documentation for:
+See the main [CASSANDRA_GUIDE.md](../CASSANDRA_GUIDE.md) for:
 - How to set up your OpenAI API key
 - How to access the chat interface
 - How the memory system works
@@ -50,7 +50,7 @@ cassandra/
 ├── seed.json                    # Generated fragment data
 ├── conversations/
 │   ├── .gitkeep                 # Preserve directory
-│   └── YYYY-MM-DD.json          # Daily conversations (gitignored)
+│   └── YYYY-MM-DD-HH-MM-SS.json # Conversation episodes (gitignored)
 ├── prompts/
 │   └── systemPrompt.js          # Cassandra's personality
 └── state/
