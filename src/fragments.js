@@ -19,6 +19,7 @@ export const getCycleInfo = (fragmentId) => {
     'cassandra-first-letter': { cycle: 'Cycle 2', number: 2, theme: 'Convergence / Divergence / Entropy' },
     'stephane-building-a-mind': { cycle: 'Cycle 2', number: 2, theme: 'Convergence / Divergence / Entropy' },
     'reader-meeting-of-minds-mirror': { cycle: 'Cycle 2', number: 2, theme: 'Convergence / Divergence / Entropy' },
+    'secret-chapter-of-echo': { cycle: 'Cycle 2', number: 2, theme: 'Convergence / Divergence / Entropy' },
     'cassandra-building-a-character': { cycle: 'Cycle 2', number: 2, theme: 'Convergence / Divergence / Entropy' },
     'stephane-first-letter': { cycle: 'Cycle 2', number: 2, theme: 'Convergence / Divergence / Entropy' },
     'reader-meeting-of-minds-third': { cycle: 'Cycle 2', number: 2, theme: 'Convergence / Divergence / Entropy' },
@@ -115,13 +116,19 @@ const fragmentMetadata = [
   },
   {
     id: "reader-meeting-of-minds-mirror",
-    connections: ["stephane-building-a-mind", "cassandra-building-a-character", "reader-meeting-of-minds", "reader-meeting-of-minds-we-are-all-friends-here", "reader-meeting-of-minds", "prologue-main"],
+    connections: ["stephane-building-a-mind", "secret-chapter-of-echo", "reader-meeting-of-minds", "reader-meeting-of-minds-we-are-all-friends-here", "cassandra-building-a-character", "prologue-main"],
     mood: "dreamlike",
     timestamp: "Between"
   },
   {
+    id: "secret-chapter-of-echo",
+    connections: ["reader-meeting-of-minds-mirror", "cassandra-building-a-character", "glyphs-main", "prologue-main", "echo-00-witness-observes"],
+    mood: "revelatory",
+    timestamp: "Peanut"
+  },
+  {
     id: "cassandra-building-a-character",
-    connections: ["reader-meeting-of-minds-mirror", "stephane-first-letter", "cassandra-last-letter", "cassandra-cassandra-finishes-her-book", "cassandra-all-the-possible-pasts", "prologue-main"],
+    connections: ["secret-chapter-of-echo", "stephane-first-letter", "cassandra-last-letter", "cassandra-cassandra-finishes-her-book", "cassandra-all-the-possible-pasts", "prologue-main"],
     mood: "inviting",
     timestamp: "Now"
   },
@@ -407,6 +414,7 @@ export const linearOrder = [
   "cassandra-first-letter",
   "stephane-building-a-mind",
   "reader-meeting-of-minds-mirror",
+  "secret-chapter-of-echo",
   "cassandra-building-a-character",
   "stephane-first-letter",
   "reader-meeting-of-minds-third",

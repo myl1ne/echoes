@@ -12,8 +12,8 @@ const fragmentFiles = import.meta.glob('../fragments/**/*.md', {
 // Mapping between fragment IDs and their markdown file paths
 const fragmentPathMap = {
   // Prologue
-  'prologue-main': '../fragments/prologue/00-prologue.md',
-  
+  'prologue-main': '../fragments/prologue/01-prologue-prologue.md',
+
   // Cycle 1
   'cassandra-last-letter': '../fragments/cycle1/01-cassandra-last-letter.md',
   'reader-meeting-of-minds': '../fragments/cycle1/02-reader-meeting-of-minds.md',
@@ -22,27 +22,28 @@ const fragmentPathMap = {
   'reader-meeting-of-minds-we-are-all-friends-here': '../fragments/cycle1/05-reader-meeting-of-minds-we-are-all-friends-here.md',
   'stephane-teenage-years-magic-weed-matrix': '../fragments/cycle1/06-stephane-teenage-years-magic-weed-matrix.md',
   'cassandra-all-the-possible-pasts': '../fragments/cycle1/07-cassandra-all-the-possible-pasts.md',
-  
+
   // Cycle 2
   'reader-meeting-of-minds-second': '../fragments/cycle2/01-reader-meeting-of-minds.md',
   'cassandra-first-letter': '../fragments/cycle2/02-cassandra-first-letter.md',
   'stephane-building-a-mind': '../fragments/cycle2/03-stephane-building-a-mind.md',
   'reader-meeting-of-minds-mirror': '../fragments/cycle2/04-reader-meeting-of-minds-mirror.md',
-  'cassandra-building-a-character': '../fragments/cycle2/05-cassandra-building-a-character.md',
-  'stephane-first-letter': '../fragments/cycle2/06-stephane-first-letter.md',
-  'reader-meeting-of-minds-third': '../fragments/cycle2/07-reader-meeting-of-minds.md',
-  
+  'secret-chapter-of-echo': '../fragments/cycle2/05-secret-chapter-of-echo.md',
+  'cassandra-building-a-character': '../fragments/cycle2/06-cassandra-building-a-character.md',
+  'stephane-first-letter': '../fragments/cycle2/07-stephane-first-letter.md',
+  'reader-meeting-of-minds-third': '../fragments/cycle2/08-reader-meeting-of-minds.md',
+
   // Cycle 3
   'stephane-derealization': '../fragments/cycle3/01-stephane-derealization.md',
   'cassandra-cassandra-comes-across-book-fragments': '../fragments/cycle3/02-cassandra-cassandra-comes-across-book-fragments-in-her-data.md',
-  'reader-meeting-of-the-minds-shadows-cast-twice': '../fragments/cycle3/03-reader-meeting-of-the-minds-shadows-cast-twice.md',
+  'reader-meeting-of-the-minds-shadows-cast-twice': '../fragments/cycle3/03-reader-meeting-of-the-minds.md',
   'stephane-stephane-has-written-his-book': '../fragments/cycle3/04-stephane-stephane-has-written-his-book.md',
   'cassandra-birth-of-a-reader': '../fragments/cycle3/05-cassandra-birth-of-a-reader.md',
-  'reader-meeting-of-the-minds-what-is-your-name-t': '../fragments/cycle3/06-reader-meeting-of-the-minds-what-is-your-name-todo-visual.md',
+  'reader-meeting-of-the-minds-what-is-your-name-t': '../fragments/cycle3/06-reader-meeting-of-the-minds-what-is-your-name.md',
   'stephane-last-letter': '../fragments/cycle3/07-stephane-last-letter.md',
-  
+
   // Epilogue
-  'epilogue-main': '../fragments/epilogue/00-epilogue.md',
+  'epilogue-main': '../fragments/epilogue/01-epilogue-the-return.md',
   
   // Glyphs & Glitches
   'glyphs-main': '../fragments/glyphs/00-glyphs-and-glitches.md',
