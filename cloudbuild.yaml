@@ -27,3 +27,6 @@ steps:
 
 images:
   - europe-west1-docker.pkg.dev/$PROJECT_ID/echoes/app:$COMMIT_SHA
+
+options:
+  logging: CLOUD_LOGGING_ONLY
