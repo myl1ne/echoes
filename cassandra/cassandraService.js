@@ -236,7 +236,7 @@ export async function sendMessage(messages, onChunk = null, currentConversationI
   if (currentConversationId && visitorId) {
     const today = new Date().toISOString().split('T')[0];
     const { getAllMessagesForDate } = await import('./conversations/conversationManager.js');
-    const todaysMessages = getAllMessagesForDate(visitorId, today);
+    const todaysMessages = await getAllMessagesForDate(visitorId, today);
     
     // Filter out messages from the current conversation (they're already in `messages`)
     const previousEpisodeMessages = todaysMessages.filter(msg => {
