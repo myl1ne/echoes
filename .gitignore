@@ -27,5 +27,6 @@ misc-resources/manuscript-text.txt
 cassandra/conversations/**/*.json
 cassandra/state/*.json
 cassandra/state/visitors/
+cassandra/state/reflections/
 !cassandra/state/.gitkeep
 !cassandra/conversations/.gitkeep

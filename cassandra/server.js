@@ -6,6 +6,12 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 import { sendMessage } from './cassandraService.js';
 import {
   getCurrentConversation,
@@ -34,7 +40,8 @@ import {
 import {
   generateStartOfDaySummary,
   generateEndOfDaySummary,
-  generateVisitorSummary
+  generateVisitorSummary,
+  generateReflection
 } from './cassandraService.js';
 
 // Load environment variables
@@ -385,6 +392,77 @@ app.post('/api/cassandra/admin/end-day', requireAdminToken, async (req, res) => 
   } catch (error) {
     console.error('Error generating end-of-day summary:', error);
     res.status(500).json({ error: 'Failed to generate summary' });
+  }
+});
+
+/**
+ * Generate a creative reflection fragment (admin endpoint)
+ * Cassandra writes from her own voice, shaped by recent conversations.
+ * Output is saved to cassandra/state/reflections/YYYY-MM-DD-HH-MM-SS.md for review.
+ * Promote to fragments/cassandra/ manually when satisfied.
+ */
+app.post('/api/cassandra/admin/reflect', requireAdminToken, async (req, res) => {
+  try {
+    const today = new Date().toISOString().split('T')[0];
+    const visitorIds = listVisitorIdsWithConversations();
+
+    // Gather recent messages across all visitors (today + yesterday)
+    const allMessages = [];
+    const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
+    for (const visitorId of visitorIds) {
+      allMessages.push(...getAllMessagesForDate(visitorId, today));
+      allMessages.push(...getAllMessagesForDate(visitorId, yesterday));
+    }
+    allMessages.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+
+    const state = loadState();
+
+    const reflection = await generateReflection(allMessages, state);
+
+    // Save to staging area
+    const reflectionsDir = path.join(__dirname, 'state', 'reflections');
+    if (!fs.existsSync(reflectionsDir)) {
+      fs.mkdirSync(reflectionsDir, { recursive: true });
+    }
+
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-').split('T').join('-').substring(0, 19);
+    const filename = `${timestamp}.md`;
+    const filepath = path.join(reflectionsDir, filename);
+    fs.writeFileSync(filepath, `# Cassandra Reflects\n\n**Generated:** ${new Date().toISOString()}\n**Date:** ${today}\n\n---\n\n${reflection}\n`);
+
+    console.log(`\n✨ Cassandra's reflection saved: ${filename}`);
+    res.json({ success: true, filename, reflection });
+  } catch (error) {
+    console.error('Error generating reflection:', error);
+    res.status(500).json({ error: 'Failed to generate reflection', details: error.message });
+  }
+});
+
+/**
+ * List available reflections (admin endpoint)
+ */
+app.get('/api/cassandra/admin/reflections', requireAdminToken, async (req, res) => {
+  try {
+    const reflectionsDir = path.join(__dirname, 'state', 'reflections');
+
+    if (!fs.existsSync(reflectionsDir)) {
+      return res.json({ reflections: [] });
+    }
+
+    const files = fs.readdirSync(reflectionsDir)
+      .filter(f => f.endsWith('.md'))
+      .sort()
+      .reverse();
+
+    const reflections = files.map(f => {
+      const content = fs.readFileSync(path.join(reflectionsDir, f), 'utf-8');
+      return { filename: f, preview: content.substring(0, 300) };
+    });
+
+    res.json({ reflections });
+  } catch (error) {
+    console.error('Error listing reflections:', error);
+    res.status(500).json({ error: 'Failed to list reflections' });
   }
 });
 

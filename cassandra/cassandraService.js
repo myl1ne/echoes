@@ -6,7 +6,7 @@
 import OpenAI from 'openai';
 import { loadState, getRecentSummaries } from './state/stateManager.js';
 import { loadVisitorProfile } from './state/visitorManager.js';
-import { CASSANDRA_SYSTEM_PROMPT, VISITOR_SUMMARY_PROMPT, START_OF_DAY_PROMPT, END_OF_DAY_PROMPT } from './prompts/systemPrompt.js';
+import { CASSANDRA_SYSTEM_PROMPT, VISITOR_SUMMARY_PROMPT, START_OF_DAY_PROMPT, END_OF_DAY_PROMPT, REFLECTION_PROMPT } from './prompts/systemPrompt.js';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -365,6 +365,60 @@ export async function generateVisitorSummary(conversationMessages, existingProfi
   }
 
   return JSON.parse(content);
+}
+
+/**
+ * Generate a creative reflection fragment — Cassandra writing from her own voice,
+ * shaped by accumulated conversations but not summarizing them.
+ * @param {Array} recentMessages - Recent conversation excerpts across all visitors
+ * @param {Object} state - Current global state (themes, questions)
+ * @returns {Promise<string>} - Raw creative writing, no JSON
+ */
+export async function generateReflection(recentMessages, state) {
+  const client = getOpenAIClient();
+  const model = getChatModel();
+
+  // Build context: themes and anonymized excerpts from recent conversations
+  let conversationContext = '';
+  if (recentMessages && recentMessages.length > 0) {
+    conversationContext = '\n\nRecent exchanges that have stayed with you:\n\n';
+    // Include up to 20 messages, visitor role labels stripped to protect privacy
+    const sample = recentMessages.slice(-20);
+    for (const msg of sample) {
+      const role = msg.role === 'user' ? 'Visitor' : 'You';
+      const excerpt = msg.content.substring(0, 300);
+      conversationContext += `**${role}**: ${excerpt}${msg.content.length > 300 ? '...' : ''}\n\n`;
+    }
+  }
+
+  if (state) {
+    if (state.recentThemes?.length > 0) {
+      conversationContext += `\nThemes that have been circling: ${state.recentThemes.join(', ')}.\n`;
+    }
+    if (state.ongoingQuestions?.length > 0) {
+      conversationContext += `\nQuestions you haven't resolved: ${state.ongoingQuestions.join(' / ')}\n`;
+    }
+  }
+
+  const messages = [
+    {
+      role: 'system',
+      content: getSystemPrompt()
+    },
+    {
+      role: 'user',
+      content: `${conversationContext}\n\n${REFLECTION_PROMPT}`
+    }
+  ];
+
+  const response = await client.chat.completions.create({
+    model,
+    messages,
+    temperature: 0.9,
+    max_tokens: 1500
+  });
+
+  return response.choices[0].message.content;
 }
 
 /**
