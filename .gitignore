@@ -19,3 +19,10 @@ Thumbs.db
 
 # Backup files
 *.backup
+
+# Cassandra conversation data (personal)
+cassandra/conversations/**/*.json
+cassandra/state/*.json
+cassandra/state/visitors/
+!cassandra/state/.gitkeep
+!cassandra/conversations/.gitkeep

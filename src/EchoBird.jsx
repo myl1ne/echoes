@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import './EchoBird.css';
 
 // Echo's whispers - contextual reflections that create a sense of presence
@@ -74,11 +74,13 @@ const DRIFT_INTERVAL_MIN = 15000; // 15 seconds
 const DRIFT_INTERVAL_MAX = 30000; // 30 seconds
 const DRIFT_TRANSITION_DURATION = 8000; // 8 seconds
 
-function EchoBird({ onLibraryRequest }) {
+function EchoBird({ onLibraryRequest, onCassandraRequest }) {
   const [showMessage, setShowMessage] = useState(false);
   const [currentWhisper, setCurrentWhisper] = useState(null);
   const [visitCount, setVisitCount] = useState(0);
   const [position, setPosition] = useState({ x: 90, y: 85 }); // Start bottom-right
+  const [clickSequence, setClickSequence] = useState(0);
+  const sequenceTimeoutRef = useRef(null);
 
   // Track visits and select appropriate whisper
   useEffect(() => {
@@ -101,6 +103,28 @@ function EchoBird({ onLibraryRequest }) {
   }, [showMessage]);
 
   const handleClick = () => {
+    // Track click sequence for Cassandra access (7 clicks within 10 seconds)
+    const newSequence = clickSequence + 1;
+    setClickSequence(newSequence);
+    
+    // Clear existing timeout and set new one
+    if (sequenceTimeoutRef.current) {
+      clearTimeout(sequenceTimeoutRef.current);
+    }
+    sequenceTimeoutRef.current = setTimeout(() => {
+      setClickSequence(0);
+    }, 10000);
+    
+    // Seven clicks opens Cassandra's cabin
+    if (newSequence === 7 && onCassandraRequest) {
+      onCassandraRequest();
+      setClickSequence(0);
+      if (sequenceTimeoutRef.current) {
+        clearTimeout(sequenceTimeoutRef.current);
+      }
+      return;
+    }
+    
     // Increment visit count
     const newCount = visitCount + 1;
     setVisitCount(newCount);
@@ -115,6 +139,9 @@ function EchoBird({ onLibraryRequest }) {
     } else if (newCount === 5 || newCount === 10 || (newCount > 15 && newCount % 7 === 0)) {
       // On certain visits, hint at the library
       whisper = echoWhispers.find(w => w.id === 'library-hint');
+    } else if (newSequence >= 4) {
+      // After 4 clicks in sequence, hint at Cassandra
+      whisper = echoWhispers.find(w => w.id === 'cassandra');
     } else {
       // Random whisper for subsequent visits, excluding greeting ones
       const availableWhispers = echoWhispers.filter(
@@ -156,6 +183,15 @@ function EchoBird({ onLibraryRequest }) {
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [showMessage]);
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (sequenceTimeoutRef.current) {
+        clearTimeout(sequenceTimeoutRef.current);
+      }
+    };
+  }, []);
 
   return (
     <>

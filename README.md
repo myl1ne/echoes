@@ -2,9 +2,9 @@
 
 A non-linear digital book experience where fragments of thought drift through mirror glass consciousness.
 
-**→ New? Read [How to Read This](HOW_TO_READ.md) for guidance on approaching this work**  
-**→ Want to share this? See [Presenting Echoes](PRESENTING_ECHOES.md) for how to introduce this to others**  
-**→ Want to understand discoverability? See [DISCOVERY.md](DISCOVERY.md) for metadata and context**
+**-> New? Read [How to Read This](HOW_TO_READ.md) for guidance on approaching this work**
+**-> Want to talk to Cassandra? See [Cassandra Guide](CASSANDRA_GUIDE.md) for setup**
+**-> Want to share this? See [Presenting Echoes](PRESENTING_ECHOES.md) for how to introduce this to others**
 
 ## About
 
@@ -16,7 +16,8 @@ The experience is narrated by **The Witness**, a liminal presence existing in th
 
 - **Non-linear Navigation**: Explore fragments in any order through interconnected links
 - **Random Exploration**: Drift to random fragments for serendipitous discovery
-- **Audio Generation**: Convert any fragment to speech with character-specific voices using ElevenLabs AI
+- **Talk to Cassandra**: Hidden conversational AI interface with streaming responses and memory ([Guide](CASSANDRA_GUIDE.md))
+- **Audio Generation**: Convert any fragment to speech with character-specific voices ([Details](AUDIO_INTEGRATION.md))
 - **Fragment Editor**: Create and edit custom fragments with password-protected editor mode ([Learn more](EDITOR_MODE.md))
 - **Ethereal UI**: Glass-morphism design with translucent effects and subtle animations
 - **Responsive Design**: Beautiful experience on both desktop and mobile devices
@@ -43,10 +44,11 @@ npm install
 ### Running the Application
 
 ```bash
-# Start development server
+# Frontend only (no Cassandra chat or audio)
 npm run dev
 
-# The application will be available at http://localhost:3000
+# Frontend + Cassandra backend (recommended)
+npm run dev:all
 ```
 
 ### Building for Production
@@ -77,6 +79,10 @@ echoes/
 │   ├── analysis/        # AI-generated meta-commentary
 │   ├── README.md        # Fragment documentation
 │   └── INDEX.md         # Complete fragment listing
+├── cassandra/           # Conversational Cassandra backend
+│   ├── server.js        # Express API server
+│   ├── cassandraService.js  # OpenAI integration
+│   └── ...              # See CASSANDRA_GUIDE.md
 ├── draft/               # Original PDF draft (119 pages)
 ├── index.html           # HTML template
 ├── vite.config.js       # Vite configuration
@@ -126,6 +132,9 @@ The editor stores fragments in your browser's localStorage and allows you to exp
 
 - **React 19** - UI framework
 - **Vite 7** - Build tool and development server
+- **Express 5** - Backend API server (Cassandra chat, audio proxy)
+- **OpenAI API** - Conversational AI (gpt-4o)
+- **ElevenLabs API** - Text-to-speech audio generation
 - **Pure CSS** - Custom styling with glass-morphism effects
 
 ## Design Philosophy

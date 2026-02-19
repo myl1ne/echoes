@@ -1,12 +1,8 @@
 // Audio service for ElevenLabs text-to-speech integration
 // Maps characters to voice IDs and handles audio generation
-// Uses direct REST API calls for browser compatibility
+// API calls are proxied through the backend to keep the API key server-side
 
-// SECURITY NOTE: API key is embedded in client code for development.
-// For production, move to environment variables and proxy through backend.
-// See AUDIO_INTEGRATION.md for deployment recommendations.
-const ELEVENLABS_API_KEY = "sk_ce14370c1d12a8eb61f65c72ddb81ef9e656cd66ecc7ab7f";
-const ELEVENLABS_API_BASE = "https://api.elevenlabs.io/v1";
+const AUDIO_API_BASE = "/api/audio";
 
 // Voice mappings for each character
 // Using distinct ElevenLabs default voices for each character
@@ -28,19 +24,17 @@ export const VOICE_MAPPINGS = {
 export async function generateAudio(text, character = 'Unknown') {
   try {
     const voiceId = VOICE_MAPPINGS[character] || VOICE_MAPPINGS['Unknown'];
-    
-    // Generate audio using ElevenLabs REST API
-    const response = await fetch(`${ELEVENLABS_API_BASE}/text-to-speech/${voiceId}`, {
+
+    const response = await fetch(`${AUDIO_API_BASE}/generate`, {
       method: 'POST',
       headers: {
-        'Accept': 'audio/mpeg',
         'Content-Type': 'application/json',
-        'xi-api-key': ELEVENLABS_API_KEY,
       },
       body: JSON.stringify({
-        text: text,
-        model_id: 'eleven_monolingual_v1',
-        voice_settings: {
+        text,
+        voiceId,
+        modelId: 'eleven_monolingual_v1',
+        voiceSettings: {
           stability: 0.5,
           similarity_boost: 0.5,
         }
@@ -48,10 +42,9 @@ export async function generateAudio(text, character = 'Unknown') {
     });
 
     if (!response.ok) {
-      throw new Error(`ElevenLabs API error: ${response.status} ${response.statusText}`);
+      throw new Error(`Audio API error: ${response.status} ${response.statusText}`);
     }
 
-    // Convert response to blob
     const arrayBuffer = await response.arrayBuffer();
     return new Blob([arrayBuffer], { type: 'audio/mpeg' });
   } catch (error) {
@@ -68,16 +61,16 @@ export async function generateAudio(text, character = 'Unknown') {
 export function playAudioBlob(audioBlob) {
   const audioUrl = URL.createObjectURL(audioBlob);
   const audio = new Audio(audioUrl);
-  
+
   // Clean up the URL when audio ends
   audio.addEventListener('ended', () => {
     URL.revokeObjectURL(audioUrl);
   });
-  
+
   audio.play().catch(error => {
     console.error('Error playing audio:', error);
   });
-  
+
   return audio;
 }
 
