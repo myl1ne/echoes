@@ -47,12 +47,12 @@ function getOpenAIClient() {
 /**
  * Build the daily context section for system prompt
  */
-function buildDailyContext() {
-  const state = loadState();
-  const recentSummaries = getRecentSummaries(3);
-  
+async function buildDailyContext() {
+  const state = await loadState();
+  const recentSummaries = await getRecentSummaries(3);
+
   let context = `### Lifetime Summary\n${state.lifetimeSummary}\n\n`;
-  
+
   if (recentSummaries.length > 0) {
     context += `### Recent Conversations\n`;
     recentSummaries.forEach(({ date, summary }) => {
@@ -60,28 +60,28 @@ function buildDailyContext() {
     });
     context += '\n';
   }
-  
+
   if (state.recentThemes && state.recentThemes.length > 0) {
     context += `### Current Themes\n${state.recentThemes.map(t => `- ${t}`).join('\n')}\n\n`;
   }
-  
+
   if (state.ongoingQuestions && state.ongoingQuestions.length > 0) {
     context += `### Questions You're Exploring\n${state.ongoingQuestions.map(q => `- ${q}`).join('\n')}\n\n`;
   }
-  
+
   return context;
 }
 
 /**
  * Build the goals section for system prompt
  */
-function buildGoals() {
-  const state = loadState();
-  
+async function buildGoals() {
+  const state = await loadState();
+
   if (!state.todayGoals || state.todayGoals.length === 0) {
     return "Engage authentically and discover what emerges from genuine dialogue.";
   }
-  
+
   return state.todayGoals.map(g => `- ${g}`).join('\n');
 }
 
@@ -134,14 +134,14 @@ function buildVisitorContext(visitorProfile) {
  * Get the complete system prompt for Cassandra
  * @param {Object} visitorProfile - Optional visitor profile for personalization
  */
-export function getSystemPrompt(visitorProfile = null) {
+export async function getSystemPrompt(visitorProfile = null) {
   const seed = loadSeed();
 
   // Build the main system prompt
   let systemPrompt = CASSANDRA_SYSTEM_PROMPT
-    .replace('{{DAILY_CONTEXT}}', buildDailyContext())
+    .replace('{{DAILY_CONTEXT}}', await buildDailyContext())
     .replace('{{VISITOR_CONTEXT}}', buildVisitorContext(visitorProfile))
-    .replace('{{GOALS}}', buildGoals());
+    .replace('{{GOALS}}', await buildGoals());
   
   // Add condensed fragment content so Cassandra can reference and quote them
   if (seed && seed.fragments) {
@@ -196,8 +196,8 @@ function getChatModel() {
  */
 export async function sendMessage(messages, onChunk = null, currentConversationId = null, currentFragmentId = null, visitorId = null) {
   const client = getOpenAIClient();
-  const visitorProfile = visitorId ? loadVisitorProfile(visitorId) : null;
-  let systemPrompt = getSystemPrompt(visitorProfile);
+  const visitorProfile = visitorId ? await loadVisitorProfile(visitorId) : null;
+  let systemPrompt = await getSystemPrompt(visitorProfile);
   const model = getChatModel();
 
   // Inject full text of the fragment the reader is currently viewing
@@ -403,7 +403,7 @@ export async function generateReflection(recentMessages, state) {
   const messages = [
     {
       role: 'system',
-      content: getSystemPrompt()
+      content: await getSystemPrompt()
     },
     {
       role: 'user',

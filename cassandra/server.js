@@ -6,9 +6,9 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
-import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import rateLimit from 'express-rate-limit';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -43,16 +43,33 @@ import {
   generateVisitorSummary,
   generateReflection
 } from './cassandraService.js';
+import { storage } from './storage/index.js';
 
 // Load environment variables
 dotenv.config();
 
 const app = express();
-const PORT = process.env.CASSANDRA_PORT || 3001;
+// Cloud Run requires PORT 8080; local dev can use CASSANDRA_PORT or fall back to 3001
+const PORT = process.env.PORT || process.env.CASSANDRA_PORT || 3001;
 
 // Middleware
 app.use(cors());
 app.use(express.json({ limit: '100kb' }));
+
+// Rate limiting on LLM endpoints — 10 requests per minute per IP
+const llmLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many requests. The cabin needs a moment of quiet.' }
+});
+
+// Serve frontend in production (Cloud Run)
+if (process.env.NODE_ENV === 'production') {
+  const distDir = path.join(__dirname, '..', 'dist');
+  app.use(express.static(distDir));
+}
 
 /**
  * Extract and validate visitorId from request (query or body)
@@ -79,21 +96,21 @@ function extractVisitorId(req, res) {
  */
 async function generateMissingSummaries() {
   try {
-    const missingSummaryDate = getMissingSummaryDate();
+    const missingSummaryDate = await getMissingSummaryDate();
     if (!missingSummaryDate) return;
 
     console.log(`\n📝 Missing summary detected for ${missingSummaryDate}, generating...`);
 
     // Generate per-visitor summaries
-    const visitorIds = listVisitorIdsWithConversations();
+    const visitorIds = await listVisitorIdsWithConversations();
     for (const visitorId of visitorIds) {
       try {
-        const visitorMessages = getAllMessagesForDate(visitorId, missingSummaryDate);
+        const visitorMessages = await getAllMessagesForDate(visitorId, missingSummaryDate);
         if (visitorMessages.length === 0) continue;
 
-        const profile = loadVisitorProfile(visitorId);
+        const profile = await loadVisitorProfile(visitorId);
         const visitorSummary = await generateVisitorSummary(visitorMessages, profile);
-        updateVisitorFromSummary(visitorId, visitorSummary);
+        await updateVisitorFromSummary(visitorId, visitorSummary);
         console.log(`  ✅ Visitor summary updated for ${profile.name || visitorId.substring(0, 8)}`);
       } catch (err) {
         console.error(`  ❌ Error generating visitor summary for ${visitorId}:`, err.message);
@@ -103,13 +120,13 @@ async function generateMissingSummaries() {
     // Generate global day summary (aggregate across all visitors)
     const allMessages = [];
     for (const visitorId of visitorIds) {
-      allMessages.push(...getAllMessagesForDate(visitorId, missingSummaryDate));
+      allMessages.push(...await getAllMessagesForDate(visitorId, missingSummaryDate));
     }
 
     if (allMessages.length > 0) {
       allMessages.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
       const summary = await generateEndOfDaySummary(allMessages);
-      saveDaySummary(missingSummaryDate, summary);
+      await saveDaySummary(missingSummaryDate, summary);
       console.log(`✅ Global summary generated for ${missingSummaryDate}`);
     } else {
       console.log(`ℹ️  No messages found for ${missingSummaryDate}, skipping summary`);
@@ -122,13 +139,13 @@ async function generateMissingSummaries() {
 /**
  * Get current conversation for a visitor (most recent or create new)
  */
-app.get('/api/cassandra/conversation', (req, res) => {
+app.get('/api/cassandra/conversation', async (req, res) => {
   const visitorId = extractVisitorId(req, res);
   if (!visitorId) return;
 
   try {
-    updateVisitorLastSeen(visitorId);
-    const conversation = getCurrentConversation(visitorId);
+    await updateVisitorLastSeen(visitorId);
+    const conversation = await getCurrentConversation(visitorId);
     res.json(conversation);
   } catch (error) {
     console.error('Error loading conversation:', error);
@@ -163,7 +180,7 @@ function validateMessageRequest(body) {
 /**
  * Send a message to Cassandra (non-streaming)
  */
-app.post('/api/cassandra/message', async (req, res) => {
+app.post('/api/cassandra/message', llmLimiter, async (req, res) => {
   try {
     const validationError = validateMessageRequest(req.body);
     if (validationError) return res.status(400).json({ error: validationError });
@@ -175,9 +192,9 @@ app.post('/api/cassandra/message', async (req, res) => {
     // Save the conversation
     const lastUserMessage = messages[messages.length - 1];
     if (lastUserMessage && lastUserMessage.role === 'user') {
-      addMessage(visitorId, conversationId, 'user', lastUserMessage.content);
+      await addMessage(visitorId, conversationId, 'user', lastUserMessage.content);
     }
-    addMessage(visitorId, conversationId, 'assistant', response);
+    await addMessage(visitorId, conversationId, 'assistant', response);
 
     res.json({ response });
   } catch (error) {
@@ -192,7 +209,7 @@ app.post('/api/cassandra/message', async (req, res) => {
 /**
  * Send a message to Cassandra (streaming via SSE)
  */
-app.post('/api/cassandra/message/stream', async (req, res) => {
+app.post('/api/cassandra/message/stream', llmLimiter, async (req, res) => {
   const validationError = validateMessageRequest(req.body);
   if (validationError) return res.status(400).json({ error: validationError });
 
@@ -220,9 +237,9 @@ app.post('/api/cassandra/message/stream', async (req, res) => {
     // Save conversation after streaming completes
     const lastUserMessage = messages[messages.length - 1];
     if (lastUserMessage && lastUserMessage.role === 'user') {
-      addMessage(visitorId, conversationId, 'user', lastUserMessage.content);
+      await addMessage(visitorId, conversationId, 'user', lastUserMessage.content);
     }
-    addMessage(visitorId, conversationId, 'assistant', fullResponse);
+    await addMessage(visitorId, conversationId, 'assistant', fullResponse);
   } catch (error) {
     console.error('Error in streaming message:', error);
     res.write(`data: ${JSON.stringify({ error: error.message })}\n\n`);
@@ -240,12 +257,11 @@ app.post('/api/cassandra/new-episode', async (req, res) => {
   try {
     const { currentConversationId } = req.body;
 
-    // Close the current episode if it exists
     if (currentConversationId) {
       try {
-        const currentConv = loadConversation(visitorId, currentConversationId);
+        const currentConv = await loadConversation(visitorId, currentConversationId);
         if (currentConv && currentConv.messages && currentConv.messages.length > 0) {
-          closeEpisode(visitorId, currentConversationId, 'User started new episode');
+          await closeEpisode(visitorId, currentConversationId, 'User started new episode');
           console.log(`📝 Closed episode ${currentConversationId} with ${currentConv.messages.length} messages`);
         }
       } catch (error) {
@@ -253,7 +269,7 @@ app.post('/api/cassandra/new-episode', async (req, res) => {
       }
     }
 
-    const conversation = createNewConversation(visitorId);
+    const conversation = await createNewConversation(visitorId);
     console.log(`✨ Created new episode: ${conversation.id}`);
     res.json(conversation);
   } catch (error) {
@@ -265,13 +281,13 @@ app.post('/api/cassandra/new-episode', async (req, res) => {
 /**
  * Set visitor name
  */
-app.post('/api/cassandra/visitor/name', (req, res) => {
+app.post('/api/cassandra/visitor/name', async (req, res) => {
   try {
     const { visitorId, name } = req.body;
     if (!visitorId || !name) {
       return res.status(400).json({ error: 'visitorId and name required' });
     }
-    const profile = setVisitorName(visitorId, name);
+    const profile = await setVisitorName(visitorId, name);
     res.json({ success: true, profile });
   } catch (error) {
     console.error('Error setting visitor name:', error);
@@ -282,9 +298,9 @@ app.post('/api/cassandra/visitor/name', (req, res) => {
 /**
  * Get current state
  */
-app.get('/api/cassandra/state', (req, res) => {
+app.get('/api/cassandra/state', async (req, res) => {
   try {
-    const state = loadState();
+    const state = await loadState();
     res.json(state);
   } catch (error) {
     console.error('Error loading state:', error);
@@ -295,12 +311,12 @@ app.get('/api/cassandra/state', (req, res) => {
 /**
  * Get conversation history (list of dates) for a visitor
  */
-app.get('/api/cassandra/history', (req, res) => {
+app.get('/api/cassandra/history', async (req, res) => {
   const visitorId = extractVisitorId(req, res);
   if (!visitorId) return;
 
   try {
-    const dates = listConversationDates(visitorId);
+    const dates = await listConversationDates(visitorId);
     res.json({ dates });
   } catch (error) {
     console.error('Error loading history:', error);
@@ -311,13 +327,13 @@ app.get('/api/cassandra/history', (req, res) => {
 /**
  * Get a specific conversation by ID for a visitor
  */
-app.get('/api/cassandra/conversation/:conversationId', (req, res) => {
+app.get('/api/cassandra/conversation/:conversationId', async (req, res) => {
   const visitorId = extractVisitorId(req, res);
   if (!visitorId) return;
 
   try {
     const { conversationId } = req.params;
-    const conversation = loadConversation(visitorId, conversationId);
+    const conversation = await loadConversation(visitorId, conversationId);
     res.json(conversation);
   } catch (error) {
     if (error.message?.startsWith('Invalid conversation ID') || error.message?.startsWith('Invalid visitor ID')) {
@@ -347,9 +363,9 @@ function requireAdminToken(req, res, next) {
  */
 app.post('/api/cassandra/admin/start-day', requireAdminToken, async (req, res) => {
   try {
-    const recentSummaries = getRecentSummaries(3);
+    const recentSummaries = await getRecentSummaries(3);
     const newState = await generateStartOfDaySummary(recentSummaries);
-    updateStateForNewDay(newState);
+    await updateStateForNewDay(newState);
     res.json({ success: true, state: newState });
   } catch (error) {
     console.error('Error generating start-of-day summary:', error);
@@ -363,21 +379,21 @@ app.post('/api/cassandra/admin/start-day', requireAdminToken, async (req, res) =
 app.post('/api/cassandra/admin/end-day', requireAdminToken, async (req, res) => {
   try {
     const today = new Date().toISOString().split('T')[0];
-    const visitorIds = listVisitorIdsWithConversations();
+    const visitorIds = await listVisitorIdsWithConversations();
 
     // Per-visitor summaries
     for (const visitorId of visitorIds) {
-      const visitorMessages = getAllMessagesForDate(visitorId, today);
+      const visitorMessages = await getAllMessagesForDate(visitorId, today);
       if (visitorMessages.length === 0) continue;
-      const profile = loadVisitorProfile(visitorId);
+      const profile = await loadVisitorProfile(visitorId);
       const visitorSummary = await generateVisitorSummary(visitorMessages, profile);
-      updateVisitorFromSummary(visitorId, visitorSummary);
+      await updateVisitorFromSummary(visitorId, visitorSummary);
     }
 
     // Global summary
     const allMessages = [];
     for (const visitorId of visitorIds) {
-      allMessages.push(...getAllMessagesForDate(visitorId, today));
+      allMessages.push(...await getAllMessagesForDate(visitorId, today));
     }
 
     if (allMessages.length === 0) {
@@ -386,7 +402,7 @@ app.post('/api/cassandra/admin/end-day', requireAdminToken, async (req, res) => 
 
     allMessages.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
     const summary = await generateEndOfDaySummary(allMessages);
-    saveDaySummary(today, summary);
+    await saveDaySummary(today, summary);
 
     res.json({ success: true, summary });
   } catch (error) {
@@ -398,40 +414,30 @@ app.post('/api/cassandra/admin/end-day', requireAdminToken, async (req, res) => 
 /**
  * Generate a creative reflection fragment (admin endpoint)
  * Cassandra writes from her own voice, shaped by recent conversations.
- * Output is saved to cassandra/state/reflections/YYYY-MM-DD-HH-MM-SS.md for review.
+ * Saved via storage provider — local file or Firestore depending on env.
  * Promote to fragments/cassandra/ manually when satisfied.
  */
 app.post('/api/cassandra/admin/reflect', requireAdminToken, async (req, res) => {
   try {
     const today = new Date().toISOString().split('T')[0];
-    const visitorIds = listVisitorIdsWithConversations();
-
-    // Gather recent messages across all visitors (today + yesterday)
-    const allMessages = [];
     const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
+    const visitorIds = await listVisitorIdsWithConversations();
+
+    const allMessages = [];
     for (const visitorId of visitorIds) {
-      allMessages.push(...getAllMessagesForDate(visitorId, today));
-      allMessages.push(...getAllMessagesForDate(visitorId, yesterday));
+      allMessages.push(...await getAllMessagesForDate(visitorId, today));
+      allMessages.push(...await getAllMessagesForDate(visitorId, yesterday));
     }
     allMessages.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
 
-    const state = loadState();
-
+    const state = await loadState();
     const reflection = await generateReflection(allMessages, state);
 
-    // Save to staging area
-    const reflectionsDir = path.join(__dirname, 'state', 'reflections');
-    if (!fs.existsSync(reflectionsDir)) {
-      fs.mkdirSync(reflectionsDir, { recursive: true });
-    }
-
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-').split('T').join('-').substring(0, 19);
-    const filename = `${timestamp}.md`;
-    const filepath = path.join(reflectionsDir, filename);
-    fs.writeFileSync(filepath, `# Cassandra Reflects\n\n**Generated:** ${new Date().toISOString()}\n**Date:** ${today}\n\n---\n\n${reflection}\n`);
+    await storage.saveReflection(timestamp, reflection, today);
 
-    console.log(`\n✨ Cassandra's reflection saved: ${filename}`);
-    res.json({ success: true, filename, reflection });
+    console.log(`\n✨ Cassandra's reflection saved: ${timestamp}`);
+    res.json({ success: true, filename: `${timestamp}.md`, reflection });
   } catch (error) {
     console.error('Error generating reflection:', error);
     res.status(500).json({ error: 'Failed to generate reflection', details: error.message });
@@ -443,22 +449,7 @@ app.post('/api/cassandra/admin/reflect', requireAdminToken, async (req, res) => 
  */
 app.get('/api/cassandra/admin/reflections', requireAdminToken, async (req, res) => {
   try {
-    const reflectionsDir = path.join(__dirname, 'state', 'reflections');
-
-    if (!fs.existsSync(reflectionsDir)) {
-      return res.json({ reflections: [] });
-    }
-
-    const files = fs.readdirSync(reflectionsDir)
-      .filter(f => f.endsWith('.md'))
-      .sort()
-      .reverse();
-
-    const reflections = files.map(f => {
-      const content = fs.readFileSync(path.join(reflectionsDir, f), 'utf-8');
-      return { filename: f, preview: content.substring(0, 300) };
-    });
-
+    const reflections = await storage.listReflections();
     res.json({ reflections });
   } catch (error) {
     console.error('Error listing reflections:', error);
@@ -523,6 +514,14 @@ app.get('/api/health', (req, res) => {
     timestamp: new Date().toISOString()
   });
 });
+
+// SPA catch-all — serve index.html for all non-API routes in production
+if (process.env.NODE_ENV === 'production') {
+  const distDir = path.join(__dirname, '..', 'dist');
+  app.get('*', (req, res) => {
+    res.sendFile(path.join(distDir, 'index.html'));
+  });
+}
 
 // Start server
 const server = app.listen(PORT, () => {

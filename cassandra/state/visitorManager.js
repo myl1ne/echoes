@@ -3,14 +3,7 @@
  * Each visitor gets a persistent profile that Cassandra uses to remember them
  */
 
-import fs from 'fs';
-import path from 'path';
-import { fileURLToPath } from 'url';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
-const VISITORS_DIR = path.join(__dirname, 'visitors');
+import { storage } from '../storage/index.js';
 
 // UUID v4 format validation
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -26,23 +19,6 @@ export function validateVisitorId(visitorId) {
     throw new Error(`Invalid visitor ID format: ${visitorId}`);
   }
   return visitorId;
-}
-
-/**
- * Ensure visitors directory exists
- */
-function ensureVisitorsDirectory() {
-  if (!fs.existsSync(VISITORS_DIR)) {
-    fs.mkdirSync(VISITORS_DIR, { recursive: true });
-  }
-}
-
-/**
- * Get visitor profile file path
- */
-function getVisitorPath(visitorId) {
-  validateVisitorId(visitorId);
-  return path.join(VISITORS_DIR, `${visitorId}.json`);
 }
 
 /**
@@ -66,62 +42,50 @@ function createDefaultProfile(visitorId) {
 /**
  * Load visitor profile (creates default if not found)
  */
-export function loadVisitorProfile(visitorId) {
-  ensureVisitorsDirectory();
-  const filePath = getVisitorPath(visitorId);
-
-  if (!fs.existsSync(filePath)) {
-    return createDefaultProfile(visitorId);
-  }
-
-  try {
-    const data = fs.readFileSync(filePath, 'utf-8');
-    return JSON.parse(data);
-  } catch (error) {
-    console.error(`Error loading visitor profile ${visitorId}:`, error);
-    return createDefaultProfile(visitorId);
-  }
+export async function loadVisitorProfile(visitorId) {
+  validateVisitorId(visitorId);
+  const profile = await storage.getVisitor(visitorId);
+  return profile || createDefaultProfile(visitorId);
 }
 
 /**
  * Save visitor profile
  */
-export function saveVisitorProfile(visitorId, profile) {
-  ensureVisitorsDirectory();
-  const filePath = getVisitorPath(visitorId);
-  fs.writeFileSync(filePath, JSON.stringify(profile, null, 2));
+export async function saveVisitorProfile(visitorId, profile) {
+  validateVisitorId(visitorId);
+  await storage.setVisitor(visitorId, profile);
 }
 
 /**
  * Update last seen timestamp and increment conversation count
  */
-export function updateVisitorLastSeen(visitorId) {
-  const profile = loadVisitorProfile(visitorId);
+export async function updateVisitorLastSeen(visitorId) {
+  const profile = await loadVisitorProfile(visitorId);
   profile.lastSeen = new Date().toISOString();
   profile.conversationCount = (profile.conversationCount || 0) + 1;
-  saveVisitorProfile(visitorId, profile);
+  await saveVisitorProfile(visitorId, profile);
   return profile;
 }
 
 /**
  * Set visitor name
  */
-export function setVisitorName(visitorId, name) {
+export async function setVisitorName(visitorId, name) {
   if (!name || typeof name !== 'string') {
     throw new Error('Name must be a non-empty string');
   }
   const trimmed = name.trim().substring(0, 100);
-  const profile = loadVisitorProfile(visitorId);
+  const profile = await loadVisitorProfile(visitorId);
   profile.name = trimmed;
-  saveVisitorProfile(visitorId, profile);
+  await saveVisitorProfile(visitorId, profile);
   return profile;
 }
 
 /**
  * Update visitor profile with summary data from Cassandra's reflection
  */
-export function updateVisitorFromSummary(visitorId, summaryData) {
-  const profile = loadVisitorProfile(visitorId);
+export async function updateVisitorFromSummary(visitorId, summaryData) {
+  const profile = await loadVisitorProfile(visitorId);
 
   if (summaryData.relationshipSummary) {
     profile.relationshipSummary = summaryData.relationshipSummary;
@@ -130,7 +94,6 @@ export function updateVisitorFromSummary(visitorId, summaryData) {
     profile.recentThemes = summaryData.recentThemes;
   }
   if (summaryData.knownFacts) {
-    // Merge new facts with existing, deduplicate
     const existingFacts = new Set(profile.knownFacts || []);
     for (const fact of summaryData.knownFacts) {
       existingFacts.add(fact);
@@ -144,17 +107,13 @@ export function updateVisitorFromSummary(visitorId, summaryData) {
     profile.name = summaryData.name;
   }
 
-  saveVisitorProfile(visitorId, profile);
+  await saveVisitorProfile(visitorId, profile);
   return profile;
 }
 
 /**
  * List all visitor IDs
  */
-export function listVisitors() {
-  ensureVisitorsDirectory();
-  return fs.readdirSync(VISITORS_DIR)
-    .filter(f => f.endsWith('.json'))
-    .map(f => f.replace('.json', ''))
-    .filter(id => UUID_REGEX.test(id));
+export async function listVisitors() {
+  return storage.listVisitorIds();
 }

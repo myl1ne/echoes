@@ -1,0 +1,12 @@
+node_modules
+dist
+.env
+.env.local
+cassandra/state/
+cassandra/conversations/
+cassandra/seed.json
+misc-resources/
+draft/
+.claude/
+.git
+*.backup
