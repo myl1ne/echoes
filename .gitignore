@@ -20,6 +20,9 @@ Thumbs.db
 # Backup files
 *.backup
 
+# Generated manuscript extraction (rebuild with: node cassandra/utils/extractManuscript.js)
+misc-resources/manuscript-text.txt
+
 # Cassandra conversation data (personal)
 cassandra/conversations/**/*.json
 cassandra/state/*.json
