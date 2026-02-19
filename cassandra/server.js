@@ -423,6 +423,25 @@ app.post('/api/cassandra/admin/end-day', requireAdminToken, async (req, res) => 
 });
 
 /**
+ * Sync summaries — generate any missing summaries from previous days.
+ * Safe to call repeatedly: no-op if everything is already summarized.
+ * Intended for Cloud Scheduler (runs nightly).
+ */
+app.post('/api/cassandra/admin/sync-summaries', requireAdminToken, async (req, res) => {
+  try {
+    const missingSummaryDate = await getMissingSummaryDate();
+    if (!missingSummaryDate) {
+      return res.json({ success: true, message: 'All summaries up to date' });
+    }
+    await generateMissingSummaries();
+    res.json({ success: true, summarized: missingSummaryDate });
+  } catch (error) {
+    console.error('Error syncing summaries:', error);
+    res.status(500).json({ error: 'Failed to sync summaries' });
+  }
+});
+
+/**
  * Generate a creative reflection fragment (admin endpoint)
  * Cassandra writes from her own voice, shaped by recent conversations.
  * Saved via storage provider — local file or Firestore depending on env.
@@ -550,10 +569,8 @@ const server = app.listen(PORT, () => {
   console.log(`\nMake sure VITE_OPENAI_API_KEY is set in your .env file`);
 
   // Generate missing summaries at startup (non-blocking)
+  // On Cloud Run, scheduled summarization is handled by Cloud Scheduler → /api/cassandra/admin/sync-summaries
   generateMissingSummaries();
-
-  // Check for missing summaries every 5 minutes
-  setInterval(generateMissingSummaries, 5 * 60 * 1000);
 });
 
 server.on('error', (err) => {
