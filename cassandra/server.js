@@ -516,9 +516,11 @@ app.get('/api/health', (req, res) => {
 });
 
 // SPA catch-all — serve index.html for all non-API routes in production
+// Uses app.use() to bypass path-to-regexp wildcard restrictions in Express 5
 if (process.env.NODE_ENV === 'production') {
   const distDir = path.join(__dirname, '..', 'dist');
-  app.get('(.*)', (req, res) => {
+  app.use((req, res, next) => {
+    if (req.path.startsWith('/api')) return next();
     res.sendFile(path.join(distDir, 'index.html'));
   });
 }
