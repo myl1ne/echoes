@@ -52,8 +52,19 @@ const app = express();
 // Cloud Run requires PORT 8080; local dev can use CASSANDRA_PORT or fall back to 3001
 const PORT = process.env.PORT || process.env.CASSANDRA_PORT || 3001;
 
-// Middleware
-app.use(cors());
+// CORS — allow only the production origin and local dev
+const allowedOrigins = [
+  'https://echoes-1272657787.europe-west1.run.app',
+  'http://localhost:5173',
+  'http://localhost:3001'
+];
+app.use(cors({
+  origin: (origin, callback) => {
+    // Allow requests with no Origin header (same-origin, curl, etc. are handled by rate limiting)
+    if (!origin || allowedOrigins.includes(origin)) return callback(null, true);
+    callback(new Error('Not allowed by CORS'));
+  }
+}));
 app.use(express.json({ limit: '100kb' }));
 
 // Rate limiting on LLM endpoints — 10 requests per minute per IP
