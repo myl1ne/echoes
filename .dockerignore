@@ -2,8 +2,10 @@ node_modules
 dist
 .env
 .env.local
-cassandra/state/
-cassandra/conversations/
+cassandra/state/*.json
+cassandra/state/visitors/
+cassandra/state/reflections/
+cassandra/conversations/**/*.json
 cassandra/seed.json
 misc-resources/
 draft/
