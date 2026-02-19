@@ -518,7 +518,7 @@ app.get('/api/health', (req, res) => {
 // SPA catch-all — serve index.html for all non-API routes in production
 if (process.env.NODE_ENV === 'production') {
   const distDir = path.join(__dirname, '..', 'dist');
-  app.get('*', (req, res) => {
+  app.get('(.*)', (req, res) => {
     res.sendFile(path.join(distDir, 'index.html'));
   });
 }
