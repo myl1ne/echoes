@@ -99,10 +99,28 @@ async function analyzeFragment(client, id, content) {
   return JSON.parse(jsonMatch[0]);
 }
 
+async function withTimer(label, fn) {
+  let secs = 0;
+  const timer = setInterval(() => {
+    secs++;
+    process.stdout.write(`\r  ${label} ... ${secs}s`);
+  }, 1000);
+  process.stdout.write(`  ${label} ... `);
+  try {
+    const result = await fn();
+    clearInterval(timer);
+    return { ok: true, result, secs };
+  } catch (err) {
+    clearInterval(timer);
+    return { ok: false, err, secs };
+  }
+}
+
 async function main() {
   const args = process.argv.slice(2);
   const isDryRun  = args.includes('--dry-run');
   const isList    = args.includes('--list');
+  const forceAll  = args.includes('--force');
   const fragIdx   = args.indexOf('--fragment');
   const targetId  = fragIdx > -1 ? args[fragIdx + 1] : null;
 
@@ -129,7 +147,7 @@ async function main() {
     return;
   }
 
-  // Load existing results to allow incremental runs
+  // Load existing results — skip already-analyzed fragments unless --force
   let existing = {};
   if (fs.existsSync(OUTPUT_PATH)) {
     try { existing = JSON.parse(fs.readFileSync(OUTPUT_PATH, 'utf8')); }
@@ -138,19 +156,25 @@ async function main() {
 
   const client = new Anthropic();
   const results = { ...existing };
-  const ids = Object.keys(toProcess);
+  const ids = Object.keys(toProcess).filter(id => forceAll || !existing[id]);
 
-  console.log(`\nAnalyzing ${ids.length} fragment(s) with Claude...\n`);
+  if (ids.length === 0) {
+    console.log('\nAll fragments already analyzed. Use --force to reprocess.');
+    return;
+  }
+
+  const total = Object.keys(toProcess).length;
+  const skipped = total - ids.length;
+  console.log(`\nAnalyzing ${ids.length} fragment(s) with Claude... (${skipped} already done)\n`);
 
   for (const id of ids) {
     const { content } = toProcess[id];
-    process.stdout.write(`  ${id} ... `);
-    try {
-      const annotation = await analyzeFragment(client, id, content);
-      results[id] = annotation;
-      process.stdout.write(`${annotation.length} segments\n`);
-    } catch (err) {
-      process.stdout.write(`ERROR: ${err.message}\n`);
+    const { ok, result, err, secs } = await withTimer(id, () => analyzeFragment(client, id, content));
+    if (ok) {
+      results[id] = result;
+      process.stdout.write(`\r  ${id} ... ${result.length} segments (${secs}s)\n`);
+    } else {
+      process.stdout.write(`\r  ${id} ... ERROR: ${err.message} (${secs}s)\n`);
     }
   }
 
