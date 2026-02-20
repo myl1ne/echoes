@@ -76,10 +76,6 @@ function App() {
           <span className="discovery-count">{nav.discoveryState.discoveredFragments.size} fragments discovered</span>
         </div>
 
-        <div className="cycle-indicator">
-          <span className="cycle-label">{cycleInfo.cycle}</span>
-          {cycleInfo.theme && <span className="cycle-theme-label"> — {cycleInfo.theme}</span>}
-        </div>
       </header>
 
       {showHistory && nav.readingHistory.length > 0 && (
@@ -129,37 +125,30 @@ function App() {
         ))}
       </div>
 
+      <button className="nav-edge nav-edge-prev" onClick={nav.navigateToPrevious} disabled={!nav.hasPrevious()} title="Previous fragment">
+        ‹
+      </button>
+      <button className="nav-edge nav-edge-next" onClick={nav.navigateToNext} disabled={!nav.hasNext()} title="Next fragment">
+        ›
+      </button>
+
       <div className={`fragment-container ${nav.fadeIn ? 'fade-in' : ''}`}>
         <article className="fragment-card">
           <div className="fragment-header">
             <h2 className="fragment-title">{nav.currentFragment.title}</h2>
-            <div className="fragment-meta">
-              <span className="fragment-character">{character}</span>
-              <span className="fragment-separator">•</span>
-              <div className={`fragment-mood-visual mood-${nav.currentFragment.mood.toLowerCase().replace(/\s+/g, '-')}`}>
-                <div className="mood-indicator" />
-              </div>
-              <span className="fragment-timestamp">Time: {nav.currentFragment.timestamp}</span>
-            </div>
           </div>
 
           <div className="fragment-content">
             {nav.currentFragment.content}
           </div>
 
-          <div className="linear-navigation">
-            <button className="nav-btn nav-btn-prev" onClick={nav.navigateToPrevious} disabled={!nav.hasPrevious()}>
-              ← Previous
-            </button>
-            <button className="nav-btn nav-btn-next" onClick={nav.navigateToNext} disabled={!nav.hasNext()}>
-              Next →
-            </button>
-          </div>
+          <footer className="fragment-footer">
+            <span className="fragment-character">{character}</span>
+            <span className="cycle-label">{cycleInfo.cycle}</span>
+          </footer>
 
           <div className="controls">
-            <button className="btn" onClick={nav.navigateToRandom}>
-              Drift to Another Fragment
-            </button>
+            <button className="drift-btn" onClick={nav.navigateToRandom}>✦</button>
           </div>
         </article>
       </div>
