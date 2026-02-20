@@ -26,10 +26,18 @@ function App() {
         e.preventDefault();
         setShowCassandra(prev => !prev);
       }
+      if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
+        e.preventDefault();
+        nav.navigateToNext();
+      }
+      if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+        e.preventDefault();
+        nav.navigateToPrevious();
+      }
     };
     window.addEventListener('keydown', handleKeyPress);
     return () => window.removeEventListener('keydown', handleKeyPress);
-  }, []);
+  }, [nav]);
 
   if (!nav.currentFragment) {
     return (
@@ -125,13 +133,6 @@ function App() {
         ))}
       </div>
 
-      <button className="nav-edge nav-edge-prev" onClick={nav.navigateToPrevious} disabled={!nav.hasPrevious()} title="Previous fragment">
-        ‹
-      </button>
-      <button className="nav-edge nav-edge-next" onClick={nav.navigateToNext} disabled={!nav.hasNext()} title="Next fragment">
-        ›
-      </button>
-
       <div className={`fragment-container ${nav.fadeIn ? 'fade-in' : ''}`}>
         <article className="fragment-card">
           <div className="fragment-header">
@@ -148,7 +149,9 @@ function App() {
           </footer>
 
           <div className="controls">
-            <button className="drift-btn" onClick={nav.navigateToRandom}>✦</button>
+            <button className="nav-inline" onClick={nav.navigateToPrevious} disabled={!nav.hasPrevious()} title="Previous fragment">‹</button>
+            <button className="drift-btn" onClick={nav.navigateToRandom} title="Drift to a random fragment">✦</button>
+            <button className="nav-inline" onClick={nav.navigateToNext} disabled={!nav.hasNext()} title="Next fragment">›</button>
           </div>
         </article>
       </div>
