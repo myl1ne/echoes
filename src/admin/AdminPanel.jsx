@@ -1,5 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
 import './AdminPanel.css';
+import { fragments, getCharacterFromId } from '../fragments';
+import { loadFragmentContent } from '../fragmentLoader';
+import { generateAudio, playAudioBlob, downloadAudio } from '../audioService';
+import EditorMode from '../EditorMode';
 
 const API_BASE = import.meta.env.VITE_API_URL || '';
 
@@ -25,6 +29,14 @@ function AdminPanel() {
   const [actionResults, setActionResults] = useState({});
   const [actionLoading, setActionLoading] = useState({});
 
+  // Generate tab
+  const [genFragmentId, setGenFragmentId] = useState('');
+  const [genLoading, setGenLoading] = useState(false);
+  const [genBlob, setGenBlob] = useState(null);
+  const [genAudio, setGenAudio] = useState(null);
+  const [genPlaying, setGenPlaying] = useState(false);
+  const [genError, setGenError] = useState(null);
+
   const apiFetch = useCallback(async (path, options = {}) => {
     const res = await fetch(`${API_BASE}${path}`, {
       ...options,
@@ -42,7 +54,6 @@ function AdminPanel() {
     return res.json();
   }, [token]);
 
-  // Verify token by hitting a lightweight endpoint
   const verifyToken = useCallback(async (t) => {
     try {
       const res = await fetch(`${API_BASE}/api/cassandra/admin/visitors`, {
@@ -76,14 +87,12 @@ function AdminPanel() {
     setSummaries(null);
   };
 
-  // Auto-authenticate if token already in sessionStorage
   useEffect(() => {
     if (token) {
       verifyToken(token).then(ok => setAuthenticated(ok));
     }
   }, [token, verifyToken]);
 
-  // Load visitors when tab becomes active
   useEffect(() => {
     if (!authenticated || activeTab !== 'visitors' || visitors !== null) return;
     setLoadingVisitors(true);
@@ -93,7 +102,6 @@ function AdminPanel() {
       .finally(() => setLoadingVisitors(false));
   }, [authenticated, activeTab, visitors, apiFetch]);
 
-  // Load state + summaries when tab becomes active
   useEffect(() => {
     if (!authenticated || activeTab !== 'state') return;
     if (!cassandraState) {
@@ -147,6 +155,55 @@ function AdminPanel() {
     }
   };
 
+  // Generate tab handlers
+  const stopGenAudio = () => {
+    if (genAudio) {
+      genAudio.pause();
+      setGenAudio(null);
+      setGenPlaying(false);
+    }
+  };
+
+  const handleGenerate = async () => {
+    if (!genFragmentId) return;
+    stopGenAudio();
+    setGenLoading(true);
+    setGenError(null);
+    setGenBlob(null);
+    try {
+      const content = await loadFragmentContent(genFragmentId);
+      const character = getCharacterFromId(genFragmentId);
+      const blob = await generateAudio(content, character);
+      setGenBlob(blob);
+    } catch (err) {
+      setGenError(err.message);
+    } finally {
+      setGenLoading(false);
+    }
+  };
+
+  const handleGenPlayPause = () => {
+    if (genPlaying && genAudio) {
+      genAudio.pause();
+      setGenPlaying(false);
+      return;
+    }
+    if (genBlob) {
+      stopGenAudio();
+      const audio = playAudioBlob(genBlob);
+      setGenAudio(audio);
+      setGenPlaying(true);
+      audio.addEventListener('ended', () => { setGenPlaying(false); setGenAudio(null); });
+      audio.addEventListener('pause', () => setGenPlaying(false));
+    }
+  };
+
+  const handleGenDownload = () => {
+    if (!genBlob || !genFragmentId) return;
+    const character = getCharacterFromId(genFragmentId);
+    downloadAudio(genBlob, `${genFragmentId}-${character}.mp3`);
+  };
+
   // --- Token gate ---
   if (!authenticated) {
     return (
@@ -169,13 +226,23 @@ function AdminPanel() {
     );
   }
 
+  // --- Editor tab renders full-screen overlay ---
+  if (activeTab === 'editor') {
+    return (
+      <EditorMode
+        adminMode={true}
+        onClose={() => setActiveTab('visitors')}
+      />
+    );
+  }
+
   // --- Main panel ---
   return (
     <div className="admin-panel">
       <header className="admin-header">
         <span className="admin-header-title">✶⃝⟡ Cassandra Admin</span>
         <nav className="admin-tabs">
-          {['visitors', 'actions', 'state'].map(tab => (
+          {['visitors', 'actions', 'state', 'generate', 'editor'].map(tab => (
             <button
               key={tab}
               className={`admin-tab ${activeTab === tab ? 'active' : ''}`}
@@ -223,12 +290,10 @@ function AdminPanel() {
                         <td>{v.conversationCount ?? '—'}</td>
                       </tr>
 
-                      {/* Expanded visitor detail */}
                       {selectedVisitor?.visitorId === v.visitorId && (
                         <tr key={`${v.visitorId}-detail`} className="admin-detail-row">
                           <td colSpan={5}>
                             <div className="admin-detail">
-                              {/* Profile */}
                               <div className="admin-detail-section">
                                 <div className="admin-detail-label">Relationship summary</div>
                                 <div>{v.relationshipSummary || <span className="admin-muted">None yet</span>}</div>
@@ -248,7 +313,6 @@ function AdminPanel() {
                                 </div>
                               )}
 
-                              {/* Conversation list */}
                               <div className="admin-detail-section">
                                 <div className="admin-detail-label">Conversations</div>
                                 {conversations === null && <div className="admin-loading">Loading…</div>}
@@ -262,7 +326,6 @@ function AdminPanel() {
                                       {convId}
                                     </button>
 
-                                    {/* Message thread */}
                                     {selectedConversation === convId && (
                                       <div className="admin-messages">
                                         {conversationDetail === null && <div className="admin-loading">Loading…</div>}
@@ -339,6 +402,58 @@ function AdminPanel() {
                 <SummaryCard key={i} summary={s} />
               ))}
             </section>
+          </div>
+        )}
+
+        {/* ── Generate tab ── */}
+        {activeTab === 'generate' && (
+          <div className="admin-generate">
+            <div className="admin-generate-form">
+              <div className="admin-generate-row">
+                <div className="admin-detail-label">Fragment</div>
+                <select
+                  className="admin-select"
+                  value={genFragmentId}
+                  onChange={e => { setGenFragmentId(e.target.value); setGenBlob(null); stopGenAudio(); }}
+                >
+                  <option value="">— select a fragment —</option>
+                  {fragments.map(f => (
+                    <option key={f.id} value={f.id}>{f.id}</option>
+                  ))}
+                </select>
+              </div>
+
+              {genFragmentId && (
+                <div className="admin-generate-row admin-muted" style={{ fontSize: '0.78rem' }}>
+                  Voice: {getCharacterFromId(genFragmentId)}
+                </div>
+              )}
+
+              <div className="admin-generate-row">
+                <button
+                  className="admin-btn-primary"
+                  disabled={!genFragmentId || genLoading}
+                  onClick={handleGenerate}
+                >
+                  {genLoading ? '…' : 'Generate TTS'}
+                </button>
+              </div>
+
+              {genError && (
+                <div className="admin-generate-error">{genError}</div>
+              )}
+
+              {genBlob && (
+                <div className="admin-generate-player">
+                  <button className="admin-btn-primary" onClick={handleGenPlayPause}>
+                    {genPlaying ? '⏸ Pause' : '▶ Play'}
+                  </button>
+                  <button className="admin-btn-ghost" onClick={handleGenDownload}>
+                    ⬇ Download
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         )}
 

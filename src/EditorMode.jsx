@@ -9,8 +9,8 @@ const PREVIEW_LENGTH = 150;
 // Simple password protection - in a real app, this would be server-side
 const EDITOR_PASSWORD = 'cassandra'; // Can be changed by the author
 
-function EditorMode({ onClose, onFragmentSaved }) {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
+function EditorMode({ onClose, onFragmentSaved, adminMode = false }) {
+  const [isAuthenticated, setIsAuthenticated] = useState(adminMode);
   const [passwordInput, setPasswordInput] = useState('');
   const [editingFragment, setEditingFragment] = useState(null);
   const [customFragments, setCustomFragments] = useState([]);

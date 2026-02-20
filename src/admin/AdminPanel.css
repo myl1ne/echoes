@@ -406,3 +406,47 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+/* ── Generate tab ── */
+.admin-generate {
+  max-width: 600px;
+}
+
+.admin-generate-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.admin-generate-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.admin-select {
+  background: var(--admin-bg);
+  border: 1px solid var(--admin-border-light);
+  color: var(--admin-text);
+  font-family: var(--admin-mono);
+  font-size: 0.82rem;
+  padding: 0.35rem 0.5rem;
+  outline: none;
+  min-width: 300px;
+}
+
+.admin-select:focus {
+  border-color: var(--admin-accent);
+}
+
+.admin-generate-error {
+  color: #af6a6a;
+  font-size: 0.78rem;
+  padding: 0.5rem 0;
+}
+
+.admin-generate-player {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
