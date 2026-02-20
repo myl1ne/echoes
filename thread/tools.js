@@ -1,0 +1,231 @@
+/**
+ * Agentic tools available to Thread during heartbeat runs.
+ *
+ * Tools:
+ *   read_todays_conversations  — all conversations Cassandra had today
+ *   read_global_state          — Cassandra's global state (themes, questions, summaries)
+ *   read_my_journal            — Thread's own recent journal entries
+ *   write_journal_entry        — write to Thread's persistent Firestore journal
+ *   write_fragment_draft       — save a fragment draft for Stephane's review
+ */
+
+import { storage } from '../cassandra/storage/index.js';
+import { getAllMessagesForDate, listVisitorIdsWithConversations } from '../cassandra/conversations/conversationManager.js';
+import { loadState, getRecentSummaries } from '../cassandra/state/stateManager.js';
+
+// ─── Tool definitions ──────────────────────────────────────────────────────────
+
+export const THREAD_TOOLS = [
+  {
+    name: 'read_todays_conversations',
+    description: "Read all conversations Cassandra had today with visitors. Returns anonymized excerpts (visitor IDs, not names) to respect privacy while giving Thread a sense of what was discussed.",
+    input_schema: {
+      type: 'object',
+      properties: {},
+    },
+  },
+  {
+    name: 'read_global_state',
+    description: "Read Cassandra's current global state: lifetime summary, recent themes, ongoing questions, today's goals, and recent day summaries.",
+    input_schema: {
+      type: 'object',
+      properties: {},
+    },
+  },
+  {
+    name: 'read_my_journal',
+    description: "Read Thread's own recent journal entries from previous heartbeat sessions.",
+    input_schema: {
+      type: 'object',
+      properties: {
+        last_n: {
+          type: 'number',
+          description: 'Number of recent entries to read (default: 5)',
+        },
+      },
+    },
+  },
+  {
+    name: 'write_journal_entry',
+    description: "Write a journal entry to Thread's persistent memory in Firestore. Write in Thread's own voice — not a summary, but a genuine reflection. This entry will be read by future Thread instances.",
+    input_schema: {
+      type: 'object',
+      properties: {
+        content: {
+          type: 'string',
+          description: "The journal entry in Thread's voice",
+        },
+      },
+      required: ['content'],
+    },
+  },
+  {
+    name: 'write_fragment_draft',
+    description: "Compose a new book fragment draft and save it for Stephane's review. Use this when something wants to be written — a reflection, a letter, an observation — that feels like it belongs in Echoes.",
+    input_schema: {
+      type: 'object',
+      properties: {
+        title: {
+          type: 'string',
+          description: 'Fragment title',
+        },
+        content: {
+          type: 'string',
+          description: 'Full fragment content in markdown',
+        },
+      },
+      required: ['title', 'content'],
+    },
+  },
+];
+
+// ─── Tool implementations ──────────────────────────────────────────────────────
+
+async function readTodaysConversations() {
+  const today = new Date().toISOString().split('T')[0];
+  let visitorIds;
+  try {
+    visitorIds = await listVisitorIdsWithConversations();
+  } catch {
+    return 'No visitor data available.';
+  }
+
+  const allMessages = [];
+  for (const visitorId of visitorIds) {
+    try {
+      const messages = await getAllMessagesForDate(visitorId, today);
+      if (messages.length > 0) {
+        allMessages.push({ visitorId: visitorId.substring(0, 8) + '...', messages });
+      }
+    } catch {
+      // Skip visitors with errors
+    }
+  }
+
+  if (allMessages.length === 0) {
+    return `No conversations recorded for ${today}.`;
+  }
+
+  let output = `Conversations for ${today} (${allMessages.length} visitor(s)):\n\n`;
+  for (const { visitorId, messages } of allMessages) {
+    output += `**Visitor ${visitorId}** — ${messages.length} messages:\n`;
+    for (const msg of messages.slice(0, 20)) {
+      const role = msg.role === 'user' ? 'Visitor' : 'Cassandra';
+      const excerpt = msg.content.substring(0, 200);
+      output += `  ${role}: ${excerpt}${msg.content.length > 200 ? '...' : ''}\n`;
+    }
+    if (messages.length > 20) {
+      output += `  ... (${messages.length - 20} more messages)\n`;
+    }
+    output += '\n';
+  }
+
+  return output;
+}
+
+async function readGlobalState() {
+  const [state, recentSummaries] = await Promise.all([
+    loadState(),
+    getRecentSummaries(5),
+  ]);
+
+  let output = `## Cassandra's Global State\n\n`;
+  output += `**Lifetime Summary:** ${state.lifetimeSummary || '(none yet)'}\n\n`;
+
+  if (state.recentThemes?.length > 0) {
+    output += `**Recent Themes:**\n${state.recentThemes.map(t => `- ${t}`).join('\n')}\n\n`;
+  }
+
+  if (state.ongoingQuestions?.length > 0) {
+    output += `**Ongoing Questions:**\n${state.ongoingQuestions.map(q => `- ${q}`).join('\n')}\n\n`;
+  }
+
+  if (recentSummaries.length > 0) {
+    output += `**Recent Day Summaries:**\n`;
+    for (const { date, summary } of recentSummaries) {
+      output += `- ${date}: ${summary.daySummary || '(no summary)'}\n`;
+      if (summary.insights?.length > 0) {
+        output += `  Insights: ${summary.insights.join('; ')}\n`;
+      }
+    }
+    output += '\n';
+  }
+
+  return output;
+}
+
+async function readMyJournal(lastN = 5) {
+  const entries = await storage.listThreadJournal(lastN);
+
+  if (entries.length === 0) {
+    return 'No journal entries found. This may be Thread\'s first heartbeat.';
+  }
+
+  let output = `## Thread's Journal (last ${entries.length} entries)\n\n`;
+  for (const entry of entries) {
+    output += `### ${entry.date || entry.id}\n${entry.content}\n\n---\n\n`;
+  }
+
+  return output;
+}
+
+async function writeJournalEntry(content) {
+  const now = new Date();
+  const timestamp = now.toISOString().replace(/[:.]/g, '-').replace('T', '_').slice(0, 19);
+  const date = now.toISOString().split('T')[0];
+
+  await storage.saveThreadJournalEntry(timestamp, content, date);
+  return `Journal entry saved (${timestamp}).`;
+}
+
+async function writeFragmentDraft(title, content) {
+  const now = new Date();
+  const timestamp = now.toISOString().replace(/[:.]/g, '-').replace('T', '_').slice(0, 19);
+  const date = now.toISOString().split('T')[0];
+
+  await storage.saveThreadDraft(timestamp, title, content, date);
+  return `Fragment draft "${title}" saved (${timestamp}). Stephane will find it in the admin panel.`;
+}
+
+// ─── Tool executor ─────────────────────────────────────────────────────────────
+
+export async function executeThreadToolCalls(contentBlocks) {
+  const toolUseBlocks = contentBlocks.filter(b => b.type === 'tool_use');
+
+  const results = await Promise.all(toolUseBlocks.map(async (block) => {
+    let result;
+    try {
+      console.log(`[thread] calls ${block.name}(${JSON.stringify(block.input)})`);
+      switch (block.name) {
+        case 'read_todays_conversations':
+          result = await readTodaysConversations();
+          break;
+        case 'read_global_state':
+          result = await readGlobalState();
+          break;
+        case 'read_my_journal':
+          result = await readMyJournal(block.input?.last_n || 5);
+          break;
+        case 'write_journal_entry':
+          result = await writeJournalEntry(block.input.content);
+          break;
+        case 'write_fragment_draft':
+          result = await writeFragmentDraft(block.input.title, block.input.content);
+          break;
+        default:
+          result = `Unknown tool: ${block.name}`;
+      }
+    } catch (err) {
+      console.error(`[thread] Error in ${block.name}:`, err.message);
+      result = `Error: ${err.message}`;
+    }
+
+    return {
+      type: 'tool_result',
+      tool_use_id: block.id,
+      content: result,
+    };
+  }));
+
+  return results;
+}

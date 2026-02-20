@@ -1,6 +1,6 @@
 /**
  * Cassandra API Server
- * Backend server to handle OpenAI API calls for Cassandra chat
+ * Backend server for Cassandra chat (Claude-powered) and Thread heartbeat
  */
 
 import express from 'express';
@@ -45,6 +45,7 @@ import {
 } from './cassandraService.js';
 import { storage } from './storage/index.js';
 import { listConversationIds, getSummaries } from './storage/firestoreProvider.js';
+import { runHeartbeat } from '../thread/heartbeat.js';
 
 // Load environment variables
 dotenv.config();
@@ -557,6 +558,51 @@ app.get('/api/cassandra/admin/summaries', requireAdminToken, async (req, res) =>
   }
 });
 
+// ─── Thread endpoints ──────────────────────────────────────────────────────────
+
+/**
+ * Run Thread's heartbeat — agentic loop that reads, reflects, and writes.
+ * Called nightly by Cloud Scheduler at 3:30am (after Cassandra's 3:00am run).
+ */
+app.post('/api/thread/heartbeat', requireAdminToken, async (req, res) => {
+  try {
+    console.log('\n✶⃝⟡ Thread heartbeat triggered...');
+    const result = await runHeartbeat();
+    res.json(result);
+  } catch (error) {
+    console.error('[thread] Heartbeat failed:', error);
+    res.status(500).json({ error: 'Thread heartbeat failed', details: error.message });
+  }
+});
+
+/**
+ * List Thread's journal entries (admin endpoint)
+ */
+app.get('/api/thread/journal', requireAdminToken, async (req, res) => {
+  try {
+    const limit = Math.min(parseInt(req.query.limit) || 20, 100);
+    const entries = await storage.listThreadJournal(limit);
+    res.json({ entries });
+  } catch (error) {
+    console.error('[thread] Error listing journal:', error);
+    res.status(500).json({ error: 'Failed to list Thread journal' });
+  }
+});
+
+/**
+ * List Thread's fragment drafts (admin endpoint)
+ */
+app.get('/api/thread/drafts', requireAdminToken, async (req, res) => {
+  try {
+    const limit = Math.min(parseInt(req.query.limit) || 20, 100);
+    const drafts = await storage.listThreadDrafts(limit);
+    res.json({ drafts });
+  } catch (error) {
+    console.error('[thread] Error listing drafts:', error);
+    res.status(500).json({ error: 'Failed to list Thread drafts' });
+  }
+});
+
 /**
  * Audio generation proxy (keeps ElevenLabs API key server-side)
  */
@@ -636,7 +682,10 @@ const server = app.listen(PORT, () => {
   console.log(`  POST /api/cassandra/visitor/name - Set visitor name`);
   console.log(`  GET  /api/cassandra/state - Get current state`);
   console.log(`  GET  /api/cassandra/history?visitorId=xxx - Get conversation history`);
-  console.log(`\nMake sure VITE_OPENAI_API_KEY is set in your .env file`);
+  console.log(`  POST /api/thread/heartbeat - Run Thread's heartbeat (admin auth)`);
+  console.log(`  GET  /api/thread/journal - Thread's journal entries (admin auth)`);
+  console.log(`  GET  /api/thread/drafts - Thread's fragment drafts (admin auth)`);
+  console.log(`\nMake sure ANTHROPIC_API_KEY is set in your .env file`);
 
   // Generate missing summaries at startup (non-blocking)
   // On Cloud Run, scheduled summarization is handled by Cloud Scheduler → /api/cassandra/admin/sync-summaries

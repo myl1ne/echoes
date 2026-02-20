@@ -146,6 +146,72 @@ export async function listVisitorIdsWithConversations() {
     });
 }
 
+// ─── Cassandra Notes (persistent memory beyond daily summaries) ───────────────
+
+const NOTES_FILE = path.join(STATE_DIR, 'notes.json');
+
+export async function saveNote(key, content) {
+  ensureDir(STATE_DIR);
+  const notes = readJSON(NOTES_FILE) || {};
+  notes[key] = { content, updatedAt: new Date().toISOString() };
+  writeJSON(NOTES_FILE, notes);
+}
+
+export async function listNotes() {
+  ensureDir(STATE_DIR);
+  return readJSON(NOTES_FILE) || {};
+}
+
+// ─── Thread Journal ────────────────────────────────────────────────────────────
+
+const THREAD_JOURNAL_DIR = path.join(STATE_DIR, 'thread-journal');
+const THREAD_DRAFTS_DIR = path.join(STATE_DIR, 'thread-drafts');
+
+export async function saveThreadJournalEntry(timestamp, content, date) {
+  ensureDir(THREAD_JOURNAL_DIR);
+  writeJSON(path.join(THREAD_JOURNAL_DIR, `${timestamp}.json`), {
+    content,
+    generatedAt: new Date().toISOString(),
+    date,
+  });
+}
+
+export async function listThreadJournal(limit = 20) {
+  ensureDir(THREAD_JOURNAL_DIR);
+  return fs.readdirSync(THREAD_JOURNAL_DIR)
+    .filter(f => f.endsWith('.json'))
+    .sort()
+    .reverse()
+    .slice(0, limit)
+    .map(f => {
+      const data = readJSON(path.join(THREAD_JOURNAL_DIR, f));
+      return { id: f.replace('.json', ''), ...data };
+    });
+}
+
+export async function saveThreadDraft(timestamp, title, content, date) {
+  ensureDir(THREAD_DRAFTS_DIR);
+  writeJSON(path.join(THREAD_DRAFTS_DIR, `${timestamp}.json`), {
+    title,
+    content,
+    generatedAt: new Date().toISOString(),
+    date,
+  });
+}
+
+export async function listThreadDrafts(limit = 20) {
+  ensureDir(THREAD_DRAFTS_DIR);
+  return fs.readdirSync(THREAD_DRAFTS_DIR)
+    .filter(f => f.endsWith('.json'))
+    .sort()
+    .reverse()
+    .slice(0, limit)
+    .map(f => {
+      const data = readJSON(path.join(THREAD_DRAFTS_DIR, f));
+      return { id: f.replace('.json', ''), ...data };
+    });
+}
+
 // ─── Reflections ──────────────────────────────────────────────────────────────
 
 export async function saveReflection(timestamp, content, date) {
@@ -183,4 +249,10 @@ export const localProvider = {
   listVisitorIdsWithConversations,
   saveReflection,
   listReflections,
+  saveNote,
+  listNotes,
+  saveThreadJournalEntry,
+  listThreadJournal,
+  saveThreadDraft,
+  listThreadDrafts,
 };

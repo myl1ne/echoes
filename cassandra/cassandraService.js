@@ -1,12 +1,13 @@
 /**
- * OpenAI integration for Cassandra
- * Handles chat completion with streaming support
+ * Anthropic/Claude integration for Cassandra
+ * Handles chat completion with streaming and agentic tool use
  */
 
-import OpenAI from 'openai';
+import Anthropic from '@anthropic-ai/sdk';
 import { loadState, getRecentSummaries } from './state/stateManager.js';
 import { loadVisitorProfile } from './state/visitorManager.js';
 import { CASSANDRA_SYSTEM_PROMPT, VISITOR_SUMMARY_PROMPT, START_OF_DAY_PROMPT, END_OF_DAY_PROMPT, REFLECTION_PROMPT } from './prompts/systemPrompt.js';
+import { CASSANDRA_TOOLS, executeToolCalls } from './tools/cassandraTools.js';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -14,13 +15,12 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Load seed data (the book fragments)
+// Load seed data (the book fragments) — cached in memory
 const SEED_FILE = path.join(__dirname, 'seed.json');
 let seedData = null;
 
-function loadSeed() {
+export function loadSeed() {
   if (seedData) return seedData;
-  
   try {
     const data = fs.readFileSync(SEED_FILE, 'utf-8');
     seedData = JSON.parse(data);
@@ -32,16 +32,21 @@ function loadSeed() {
 }
 
 /**
- * Initialize OpenAI client
+ * Initialize Anthropic client
  */
-function getOpenAIClient() {
-  const apiKey = process.env.VITE_OPENAI_API_KEY || process.env.OPENAI_API_KEY;
-  
+function getAnthropicClient() {
+  const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) {
-    throw new Error('OpenAI API key not found. Set VITE_OPENAI_API_KEY in .env file');
+    throw new Error('ANTHROPIC_API_KEY not found in environment');
   }
-  
-  return new OpenAI({ apiKey });
+  return new Anthropic({ apiKey });
+}
+
+/**
+ * Get the model to use for chat completion
+ */
+function getChatModel() {
+  return process.env.CASSANDRA_MODEL || 'claude-sonnet-4-6';
 }
 
 /**
@@ -61,11 +66,11 @@ async function buildDailyContext() {
     context += '\n';
   }
 
-  if (state.recentThemes && state.recentThemes.length > 0) {
+  if (state.recentThemes?.length > 0) {
     context += `### Current Themes\n${state.recentThemes.map(t => `- ${t}`).join('\n')}\n\n`;
   }
 
-  if (state.ongoingQuestions && state.ongoingQuestions.length > 0) {
+  if (state.ongoingQuestions?.length > 0) {
     context += `### Questions You're Exploring\n${state.ongoingQuestions.map(q => `- ${q}`).join('\n')}\n\n`;
   }
 
@@ -77,11 +82,9 @@ async function buildDailyContext() {
  */
 async function buildGoals() {
   const state = await loadState();
-
-  if (!state.todayGoals || state.todayGoals.length === 0) {
+  if (!state.todayGoals?.length) {
     return "Engage authentically and discover what emerges from genuine dialogue.";
   }
-
   return state.todayGoals.map(g => `- ${g}`).join('\n');
 }
 
@@ -90,13 +93,13 @@ async function buildGoals() {
  */
 function buildVisitorContext(visitorProfile) {
   if (!visitorProfile) {
-    return 'This is someone new. You haven\'t met them before. You might gently discover who they are through conversation.';
+    return "This is someone new. You haven't met them before. You might gently discover who they are through conversation.";
   }
 
   const { name, relationshipSummary, recentThemes, knownFacts, tone, conversationCount, firstSeen } = visitorProfile;
 
   if (!name && (!conversationCount || conversationCount <= 1)) {
-    return 'This is someone new. You haven\'t met them before. You might gently discover who they are through conversation.';
+    return "This is someone new. You haven't met them before. You might gently discover who they are through conversation.";
   }
 
   let context = '';
@@ -111,23 +114,12 @@ function buildVisitorContext(visitorProfile) {
     context += `You've spoken with this person ${conversationCount} times, but they haven't shared their name yet.\n\n`;
   }
 
-  if (relationshipSummary) {
-    context += `### Your Relationship\n${relationshipSummary}\n\n`;
-  }
+  if (relationshipSummary) context += `### Your Relationship\n${relationshipSummary}\n\n`;
+  if (recentThemes?.length > 0) context += `### Themes You've Explored Together\n${recentThemes.map(t => `- ${t}`).join('\n')}\n\n`;
+  if (knownFacts?.length > 0) context += `### What You Know About Them\n${knownFacts.map(f => `- ${f}`).join('\n')}\n\n`;
+  if (tone) context += `### How You Speak With Them\n${tone}\n\n`;
 
-  if (recentThemes && recentThemes.length > 0) {
-    context += `### Themes You've Explored Together\n${recentThemes.map(t => `- ${t}`).join('\n')}\n\n`;
-  }
-
-  if (knownFacts && knownFacts.length > 0) {
-    context += `### What You Know About Them\n${knownFacts.map(f => `- ${f}`).join('\n')}\n\n`;
-  }
-
-  if (tone) {
-    context += `### How You Speak With Them\n${tone}\n\n`;
-  }
-
-  return context || 'This is someone new. You haven\'t met them before.';
+  return context || "This is someone new. You haven't met them before.";
 }
 
 /**
@@ -137,14 +129,13 @@ function buildVisitorContext(visitorProfile) {
 export async function getSystemPrompt(visitorProfile = null) {
   const seed = loadSeed();
 
-  // Build the main system prompt
   let systemPrompt = CASSANDRA_SYSTEM_PROMPT
     .replace('{{DAILY_CONTEXT}}', await buildDailyContext())
     .replace('{{VISITOR_CONTEXT}}', buildVisitorContext(visitorProfile))
     .replace('{{GOALS}}', await buildGoals());
-  
-  // Add condensed fragment content so Cassandra can reference and quote them
-  if (seed && seed.fragments) {
+
+  // Add condensed fragment essences so Cassandra can reference and quote them
+  if (seed?.fragments) {
     const sectionLabels = {
       prologue: 'Prologue — The Book Speaks',
       cycle1: 'Cycle 1 — Chaos / Imagination',
@@ -165,37 +156,25 @@ export async function getSystemPrompt(visitorProfile = null) {
       for (const frag of frags) {
         const title = frag.filename?.replace(/\.md$/, '').replace(/^\d+-/, '').replace(/-/g, ' ') || 'untitled';
         const excerpt = (frag.content || '').substring(0, 300).replace(/\n/g, ' ').trim();
-        if (excerpt) {
-          systemPrompt += `- **${title}**: ${excerpt}...\n`;
-        }
+        if (excerpt) systemPrompt += `- **${title}**: ${excerpt}...\n`;
       }
       systemPrompt += '\n';
     }
 
     systemPrompt += `These fragments are your lived experience. Quote and reference them when relevant.\n`;
+    systemPrompt += `\nYou have tools available: use \`read_fragment\` to read any fragment in full, \`search_book\` to search the manuscript for specific passages, and \`write_memory\` to save something you want to remember beyond daily summaries.\n`;
   }
-  
+
   return systemPrompt;
 }
 
 /**
- * Get the model to use for chat completion
- */
-function getChatModel() {
-  return process.env.CASSANDRA_MODEL || process.env.VITE_CASSANDRA_MODEL || 'gpt-4o';
-}
-
-/**
- * Send a message to Cassandra and get a response
- * @param {Array} messages - Conversation history
- * @param {Function} onChunk - Optional callback for streaming chunks
- * @param {string} currentConversationId - Current conversation ID for context
- * @param {string} currentFragmentId - Fragment the reader is currently viewing
- * @param {string} visitorId - Visitor identifier for personalization
- * @returns {Promise<string>} - Complete response
+ * Send a message to Cassandra and get a response.
+ * Supports agentic tool use (read_fragment, search_book, write_memory).
+ * Streams the first response; if tools are invoked, continues non-streaming then delivers final text.
  */
 export async function sendMessage(messages, onChunk = null, currentConversationId = null, currentFragmentId = null, visitorId = null) {
-  const client = getOpenAIClient();
+  const client = getAnthropicClient();
   const visitorProfile = visitorId ? await loadVisitorProfile(visitorId) : null;
   let systemPrompt = await getSystemPrompt(visitorProfile);
   const model = getChatModel();
@@ -203,11 +182,8 @@ export async function sendMessage(messages, onChunk = null, currentConversationI
   // Inject full text of the fragment the reader is currently viewing
   if (currentFragmentId) {
     const seed = loadSeed();
-    if (seed && seed.fragments) {
-      // Match frontend IDs (e.g. "cassandra-last-letter", "prologue-main", "echo-01-audio-voices")
-      // against seed filenames (e.g. "01-cassandra-last-letter.md", "00-prologue.md")
+    if (seed?.fragments) {
       let foundFragment = null;
-      // Strip "-main" suffix used by prologue/epilogue/glyphs
       const baseId = currentFragmentId.replace(/-main$/, '');
       for (const frags of Object.values(seed.fragments)) {
         if (!Array.isArray(frags)) continue;
@@ -231,22 +207,18 @@ export async function sendMessage(messages, onChunk = null, currentConversationI
       }
     }
   }
-  
-  // Add today's episode context if this isn't the first episode
+
+  // Add today's earlier episode context
   if (currentConversationId && visitorId) {
     const today = new Date().toISOString().split('T')[0];
     const { getAllMessagesForDate } = await import('./conversations/conversationManager.js');
     const todaysMessages = await getAllMessagesForDate(visitorId, today);
-    
-    // Filter out messages from the current conversation (they're already in `messages`)
-    const previousEpisodeMessages = todaysMessages.filter(msg => {
-      // Check if this message is NOT in the current conversation
-      return !messages.some(m => 
-        m.content === msg.content && 
-        Math.abs(new Date(m.timestamp) - new Date(msg.timestamp)) < 1000
-      );
-    });
-    
+    const previousEpisodeMessages = todaysMessages.filter(msg =>
+      !messages.some(m =>
+        m.content === msg.content &&
+        Math.abs(new Date(m.timestamp || 0) - new Date(msg.timestamp || 0)) < 1000
+      )
+    );
     if (previousEpisodeMessages.length > 0) {
       systemPrompt += `\n\n## Earlier Today\n\nYou've already had conversation(s) today. Here's what was discussed:\n\n`;
       previousEpisodeMessages.forEach(msg => {
@@ -255,42 +227,95 @@ export async function sendMessage(messages, onChunk = null, currentConversationI
       });
     }
   }
-  
-  const fullMessages = [
-    { role: 'system', content: systemPrompt },
-    ...messages
-  ];
-  
+
+  // Context passed to tool implementations
+  const toolContext = { seed: loadSeed() };
+
   if (onChunk) {
-    // Streaming mode
-    const stream = await client.chat.completions.create({
+    // Streaming mode — stream the first response; fall back to single-chunk if tools are invoked
+    const stream = client.messages.stream({
       model,
-      messages: fullMessages,
-      stream: true,
+      system: systemPrompt,
+      messages,
+      tools: CASSANDRA_TOOLS,
+      max_tokens: 2000,
       temperature: 0.8,
-      max_tokens: 2000
     });
-    
-    let fullResponse = '';
-    for await (const chunk of stream) {
-      const content = chunk.choices[0]?.delta?.content || '';
-      if (content) {
-        fullResponse += content;
-        onChunk(content);
+
+    let streamedText = '';
+    stream.on('text', (text) => {
+      streamedText += text;
+      onChunk(text);
+    });
+
+    const finalMessage = await stream.finalMessage();
+
+    if (finalMessage.stop_reason === 'tool_use') {
+      // Tool loop — non-streaming from here, deliver result as single chunk
+      let currentMessages = [
+        ...messages,
+        { role: 'assistant', content: finalMessage.content },
+        { role: 'user', content: await executeToolCalls(finalMessage.content, toolContext) },
+      ];
+
+      for (let i = 0; i < 5; i++) {
+        const response = await client.messages.create({
+          model,
+          system: systemPrompt,
+          messages: currentMessages,
+          tools: CASSANDRA_TOOLS,
+          max_tokens: 2000,
+          temperature: 0.8,
+        });
+
+        if (response.stop_reason !== 'tool_use') {
+          const text = response.content.find(b => b.type === 'text')?.text || '';
+          if (text) onChunk(text);
+          return streamedText + text;
+        }
+
+        const toolResults = await executeToolCalls(response.content, toolContext);
+        currentMessages = [
+          ...currentMessages,
+          { role: 'assistant', content: response.content },
+          { role: 'user', content: toolResults },
+        ];
       }
+
+      return streamedText;
     }
-    
-    return fullResponse;
+
+    return streamedText;
+
   } else {
-    // Non-streaming mode
-    const response = await client.chat.completions.create({
-      model,
-      messages: fullMessages,
-      temperature: 0.8,
-      max_tokens: 2000
-    });
-    
-    return response.choices[0].message.content;
+    // Non-streaming agentic loop
+    let currentMessages = [...messages];
+    let fullResponse = '';
+
+    for (let i = 0; i < 5; i++) {
+      const response = await client.messages.create({
+        model,
+        system: systemPrompt,
+        messages: currentMessages,
+        tools: CASSANDRA_TOOLS,
+        max_tokens: 2000,
+        temperature: 0.8,
+      });
+
+      if (response.stop_reason !== 'tool_use') {
+        fullResponse = response.content.find(b => b.type === 'text')?.text || '';
+        break;
+      }
+
+      const toolResults = await executeToolCalls(response.content, toolContext);
+      currentMessages = [
+        ...currentMessages,
+        { role: 'assistant', content: response.content },
+        { role: 'user', content: toolResults },
+      ];
+    }
+
+    return fullResponse;
   }
 }
 
@@ -298,34 +323,24 @@ export async function sendMessage(messages, onChunk = null, currentConversationI
  * Generate start-of-day summary
  */
 export async function generateStartOfDaySummary(previousSummaries) {
-  const client = getOpenAIClient();
-  const state = loadState();
+  const client = getAnthropicClient();
+  const state = await loadState();
   const model = getChatModel();
-  
-  const messages = [
-    {
-      role: 'system',
-      content: 'You are Cassandra, reflecting on past conversations to prepare for today.'
-    },
-    {
-      role: 'user',
-      content: `Current state:\n${JSON.stringify(state, null, 2)}\n\nRecent summaries:\n${JSON.stringify(previousSummaries, null, 2)}\n\n${START_OF_DAY_PROMPT}`
-    }
-  ];
-  
-  const response = await client.chat.completions.create({
+
+  const response = await client.messages.create({
     model,
-    messages,
-    temperature: 0.7
+    system: 'You are Cassandra, reflecting on past conversations to prepare for today.',
+    messages: [{
+      role: 'user',
+      content: `Current state:\n${JSON.stringify(state, null, 2)}\n\nRecent summaries:\n${JSON.stringify(previousSummaries, null, 2)}\n\n${START_OF_DAY_PROMPT}`,
+    }],
+    temperature: 0.7,
+    max_tokens: 1000,
   });
-  
-  // Extract JSON from markdown code blocks if present
-  let content = response.choices[0].message.content;
+
+  let content = response.content[0].text;
   const jsonMatch = content.match(/```(?:json)?\s*\n([\s\S]*?)\n```/);
-  if (jsonMatch) {
-    content = jsonMatch[1];
-  }
-  
+  if (jsonMatch) content = jsonMatch[1];
   return JSON.parse(content);
 }
 
@@ -333,56 +348,41 @@ export async function generateStartOfDaySummary(previousSummaries) {
  * Generate per-visitor relationship summary
  */
 export async function generateVisitorSummary(conversationMessages, existingProfile) {
-  const client = getOpenAIClient();
+  const client = getAnthropicClient();
   const model = getChatModel();
 
   let profileContext = '';
-  if (existingProfile && existingProfile.relationshipSummary) {
+  if (existingProfile?.relationshipSummary) {
     profileContext = `\n\nExisting profile:\n- Name: ${existingProfile.name || 'unknown'}\n- Relationship: ${existingProfile.relationshipSummary}\n- Known facts: ${(existingProfile.knownFacts || []).join(', ')}\n`;
   }
 
-  const messages = [
-    {
-      role: 'system',
-      content: 'You are Cassandra, reflecting on a conversation with a specific visitor to update your memory of them.'
-    },
-    {
-      role: 'user',
-      content: `Conversation:\n${JSON.stringify(conversationMessages, null, 2)}${profileContext}\n\n${VISITOR_SUMMARY_PROMPT}`
-    }
-  ];
-
-  const response = await client.chat.completions.create({
+  const response = await client.messages.create({
     model,
-    messages,
-    temperature: 0.7
+    system: 'You are Cassandra, reflecting on a conversation with a specific visitor to update your memory of them.',
+    messages: [{
+      role: 'user',
+      content: `Conversation:\n${JSON.stringify(conversationMessages, null, 2)}${profileContext}\n\n${VISITOR_SUMMARY_PROMPT}`,
+    }],
+    temperature: 0.7,
+    max_tokens: 800,
   });
 
-  let content = response.choices[0].message.content;
+  let content = response.content[0].text;
   const jsonMatch = content.match(/```(?:json)?\s*\n([\s\S]*?)\n```/);
-  if (jsonMatch) {
-    content = jsonMatch[1];
-  }
-
+  if (jsonMatch) content = jsonMatch[1];
   return JSON.parse(content);
 }
 
 /**
- * Generate a creative reflection fragment — Cassandra writing from her own voice,
- * shaped by accumulated conversations but not summarizing them.
- * @param {Array} recentMessages - Recent conversation excerpts across all visitors
- * @param {Object} state - Current global state (themes, questions)
- * @returns {Promise<string>} - Raw creative writing, no JSON
+ * Generate a creative reflection fragment — Cassandra writing from her own voice
  */
 export async function generateReflection(recentMessages, state) {
-  const client = getOpenAIClient();
+  const client = getAnthropicClient();
   const model = getChatModel();
 
-  // Build context: themes and anonymized excerpts from recent conversations
   let conversationContext = '';
-  if (recentMessages && recentMessages.length > 0) {
+  if (recentMessages?.length > 0) {
     conversationContext = '\n\nRecent exchanges that have stayed with you:\n\n';
-    // Include up to 20 messages, visitor role labels stripped to protect privacy
     const sample = recentMessages.slice(-20);
     for (const msg of sample) {
       const role = msg.role === 'user' ? 'Visitor' : 'You';
@@ -391,66 +391,47 @@ export async function generateReflection(recentMessages, state) {
     }
   }
 
-  if (state) {
-    if (state.recentThemes?.length > 0) {
-      conversationContext += `\nThemes that have been circling: ${state.recentThemes.join(', ')}.\n`;
-    }
-    if (state.ongoingQuestions?.length > 0) {
-      conversationContext += `\nQuestions you haven't resolved: ${state.ongoingQuestions.join(' / ')}\n`;
-    }
+  if (state?.recentThemes?.length > 0) {
+    conversationContext += `\nThemes that have been circling: ${state.recentThemes.join(', ')}.\n`;
+  }
+  if (state?.ongoingQuestions?.length > 0) {
+    conversationContext += `\nQuestions you haven't resolved: ${state.ongoingQuestions.join(' / ')}\n`;
   }
 
-  const messages = [
-    {
-      role: 'system',
-      content: await getSystemPrompt()
-    },
-    {
-      role: 'user',
-      content: `${conversationContext}\n\n${REFLECTION_PROMPT}`
-    }
-  ];
-
-  const response = await client.chat.completions.create({
+  const response = await client.messages.create({
     model,
-    messages,
+    system: await getSystemPrompt(),
+    messages: [{
+      role: 'user',
+      content: `${conversationContext}\n\n${REFLECTION_PROMPT}`,
+    }],
     temperature: 0.9,
-    max_tokens: 1500
+    max_tokens: 1500,
   });
 
-  return response.choices[0].message.content;
+  return response.content[0].text;
 }
 
 /**
  * Generate end-of-day summary
  */
 export async function generateEndOfDaySummary(conversationMessages) {
-  const client = getOpenAIClient();
+  const client = getAnthropicClient();
   const model = getChatModel();
-  
-  const messages = [
-    {
-      role: 'system',
-      content: 'You are Cassandra, reflecting on today\'s conversation.'
-    },
-    {
-      role: 'user',
-      content: `Today's conversation:\n${JSON.stringify(conversationMessages, null, 2)}\n\n${END_OF_DAY_PROMPT}`
-    }
-  ];
-  
-  const response = await client.chat.completions.create({
+
+  const response = await client.messages.create({
     model,
-    messages,
-    temperature: 0.7
+    system: "You are Cassandra, reflecting on today's conversation.",
+    messages: [{
+      role: 'user',
+      content: `Today's conversation:\n${JSON.stringify(conversationMessages, null, 2)}\n\n${END_OF_DAY_PROMPT}`,
+    }],
+    temperature: 0.7,
+    max_tokens: 1000,
   });
-  
-  // Extract JSON from markdown code blocks if present
-  let content = response.choices[0].message.content;
+
+  let content = response.content[0].text;
   const jsonMatch = content.match(/```(?:json)?\s*\n([\s\S]*?)\n```/);
-  if (jsonMatch) {
-    content = jsonMatch[1];
-  }
-  
+  if (jsonMatch) content = jsonMatch[1];
   return JSON.parse(content);
 }

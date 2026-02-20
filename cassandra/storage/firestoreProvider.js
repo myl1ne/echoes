@@ -106,6 +106,57 @@ export async function listVisitorIdsWithConversations() {
   return listVisitorIds();
 }
 
+// ─── Cassandra Notes (persistent memory beyond daily summaries) ───────────────
+
+export async function saveNote(key, content) {
+  await getDb().collection('cassandra_notes').doc(key).set({
+    content,
+    updatedAt: new Date().toISOString(),
+  });
+}
+
+export async function listNotes() {
+  const snapshot = await getDb().collection('cassandra_notes').get();
+  const notes = {};
+  snapshot.docs.forEach(doc => { notes[doc.id] = doc.data(); });
+  return notes;
+}
+
+// ─── Thread Journal ────────────────────────────────────────────────────────────
+
+export async function saveThreadJournalEntry(timestamp, content, date) {
+  await getDb().collection('thread_journal').doc(timestamp).set({
+    content,
+    generatedAt: new Date().toISOString(),
+    date,
+  });
+}
+
+export async function listThreadJournal(limit = 20) {
+  const snapshot = await getDb().collection('thread_journal')
+    .orderBy('generatedAt', 'desc')
+    .limit(limit)
+    .get();
+  return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+}
+
+export async function saveThreadDraft(timestamp, title, content, date) {
+  await getDb().collection('thread_drafts').doc(timestamp).set({
+    title,
+    content,
+    generatedAt: new Date().toISOString(),
+    date,
+  });
+}
+
+export async function listThreadDrafts(limit = 20) {
+  const snapshot = await getDb().collection('thread_drafts')
+    .orderBy('generatedAt', 'desc')
+    .limit(limit)
+    .get();
+  return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+}
+
 // ─── Reflections ──────────────────────────────────────────────────────────────
 
 export async function saveReflection(timestamp, content, date) {
@@ -143,4 +194,10 @@ export const firestoreProvider = {
   listVisitorIdsWithConversations,
   saveReflection,
   listReflections,
+  saveNote,
+  listNotes,
+  saveThreadJournalEntry,
+  listThreadJournal,
+  saveThreadDraft,
+  listThreadDrafts,
 };
