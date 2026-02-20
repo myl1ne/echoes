@@ -220,6 +220,23 @@ body::before {
   );
 }
 
+/* Epigraph — opening quote */
+.fragment-epigraph {
+  display: block;
+  font-style: italic;
+  font-size: 0.92rem;
+  font-weight: 300;
+  color: var(--accent);
+  opacity: 0.78;
+  text-align: center;
+  border: none;
+  margin: 0 auto 2.2rem;
+  padding: 0 2rem;
+  max-width: 420px;
+  line-height: 1.7;
+  letter-spacing: 0.01em;
+}
+
 /* Drop cap */
 .fragment-content::first-letter {
   font-size: 3.4rem;

@@ -38,6 +38,7 @@
     "vite": "^7.1.12"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.78.0",
     "@google-cloud/firestore": "^8.3.0",
     "cors": "^2.8.5",
     "dotenv": "^17.2.3",

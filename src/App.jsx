@@ -162,7 +162,19 @@ function App() {
           </div>
 
           <div className="fragment-content" ref={contentRef} style={{'--reveal': '115%'}}>
-            {nav.currentFragment.content}
+            {(() => {
+              const content = nav.currentFragment.content;
+              const firstNewline = content.indexOf('\n');
+              const firstLine = firstNewline > -1 ? content.slice(0, firstNewline).trim() : '';
+              const rest = firstNewline > -1 ? content.slice(firstNewline + 1) : content;
+              const isEpigraph = /^"[^"]*"[\s\u2014\u2013—–-]+\S/.test(firstLine);
+              return isEpigraph ? (
+                <>
+                  <blockquote className="fragment-epigraph">{firstLine}</blockquote>
+                  {rest}
+                </>
+              ) : content;
+            })()}
           </div>
 
           <footer className="fragment-footer">
