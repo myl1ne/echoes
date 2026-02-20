@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import './App.css';
 import { getFragmentById, getCycleInfo, getCharacterFromId } from './fragments';
 import { isFeatureUnlocked, UI_FEATURES } from './discoveryState';
@@ -12,6 +12,28 @@ const PREVIEW_EXCERPT_LENGTH = 150;
 
 function App() {
   const nav = useFragmentNavigation();
+
+  const contentRef = useRef(null);
+
+  // Gradual text reveal at ~155 wpm (slightly below average reading speed)
+  useEffect(() => {
+    if (!nav.currentFragment || !contentRef.current) return;
+    const el = contentRef.current;
+    el.style.setProperty('--reveal', '0%');
+
+    const wordCount = nav.currentFragment.content.split(/\s+/).length;
+    const totalMs = (wordCount / 155) * 60 * 1000;
+
+    let rafId;
+    const start = performance.now();
+    const tick = (now) => {
+      const pct = Math.min(115, ((now - start) / totalMs) * 115);
+      el.style.setProperty('--reveal', `${pct.toFixed(2)}%`);
+      if (pct < 115) rafId = requestAnimationFrame(tick);
+    };
+    rafId = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(rafId);
+  }, [nav.currentFragment?.id]);
 
   const [showConstellation, setShowConstellation] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
@@ -139,7 +161,7 @@ function App() {
             <h2 className="fragment-title">{nav.currentFragment.title}</h2>
           </div>
 
-          <div className="fragment-content">
+          <div className="fragment-content" ref={contentRef} style={{'--reveal': '115%'}}>
             {nav.currentFragment.content}
           </div>
 

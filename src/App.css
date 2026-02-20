@@ -7,9 +7,9 @@
 }
 
 :root {
-  --bg:           #13100e;
-  --text:         #e2d9c8;
-  --text-dim:     rgba(226, 217, 200, 0.42);
+  --bg:           #221d18;
+  --text:         #ede6d8;
+  --text-dim:     rgba(237, 230, 216, 0.58);
   --accent:       rgba(210, 175, 108, 0.9);
   --accent-glow:  rgba(210, 175, 108, 0.18);
   --border:       rgba(210, 175, 108, 0.13);
@@ -208,6 +208,16 @@ body::before {
   white-space: pre-line;
   text-align: justify;
   margin-bottom: 2rem;
+  -webkit-mask-image: linear-gradient(
+    to bottom,
+    black var(--reveal, 115%),
+    rgba(0, 0, 0, 0.08) calc(var(--reveal, 115%) + 28%)
+  );
+  mask-image: linear-gradient(
+    to bottom,
+    black var(--reveal, 115%),
+    rgba(0, 0, 0, 0.08) calc(var(--reveal, 115%) + 28%)
+  );
 }
 
 /* Drop cap */
