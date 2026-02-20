@@ -1,0 +1,408 @@
+/* Cassandra Admin Panel — minimal dark ops UI */
+
+:root {
+  --admin-bg: #0a0a0a;
+  --admin-surface: #111;
+  --admin-border: #222;
+  --admin-border-light: #333;
+  --admin-text: #ccc;
+  --admin-text-dim: #555;
+  --admin-accent: #888;
+  --admin-accent-hi: #bbb;
+  --admin-ok: #4a7c59;
+  --admin-err: #7c4a4a;
+  --admin-selected: #1a1a1a;
+  --admin-mono: 'Courier New', Courier, monospace;
+}
+
+/* ── Gate ── */
+.admin-gate {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  background: var(--admin-bg);
+  color: var(--admin-text);
+  font-family: var(--admin-mono);
+}
+
+.admin-gate-box {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding: 2rem;
+  border: 1px solid var(--admin-border-light);
+  min-width: 320px;
+}
+
+.admin-gate-title {
+  font-size: 1.1rem;
+  color: var(--admin-accent-hi);
+  letter-spacing: 0.05em;
+  margin-bottom: 0.5rem;
+}
+
+.admin-token-input {
+  width: 100%;
+  background: var(--admin-bg);
+  border: 1px solid var(--admin-border-light);
+  color: var(--admin-text);
+  font-family: var(--admin-mono);
+  font-size: 0.9rem;
+  padding: 0.5rem 0.75rem;
+  outline: none;
+  box-sizing: border-box;
+}
+
+.admin-token-input:focus {
+  border-color: var(--admin-accent);
+}
+
+/* ── Panel layout ── */
+.admin-panel {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  background: var(--admin-bg);
+  color: var(--admin-text);
+  font-family: var(--admin-mono);
+  font-size: 0.85rem;
+}
+
+/* ── Header ── */
+.admin-header {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  padding: 0.75rem 1.5rem;
+  border-bottom: 1px solid var(--admin-border);
+  background: var(--admin-surface);
+}
+
+.admin-header-title {
+  color: var(--admin-accent-hi);
+  font-size: 0.95rem;
+  letter-spacing: 0.05em;
+  white-space: nowrap;
+}
+
+.admin-tabs {
+  display: flex;
+  gap: 0.25rem;
+  flex: 1;
+}
+
+.admin-tab {
+  background: none;
+  border: 1px solid transparent;
+  color: var(--admin-accent);
+  font-family: var(--admin-mono);
+  font-size: 0.82rem;
+  padding: 0.3rem 0.75rem;
+  cursor: pointer;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.admin-tab:hover {
+  color: var(--admin-text);
+  border-color: var(--admin-border-light);
+}
+
+.admin-tab.active {
+  color: var(--admin-accent-hi);
+  border-color: var(--admin-accent);
+  background: var(--admin-selected);
+}
+
+/* ── Buttons ── */
+.admin-btn-primary {
+  background: none;
+  border: 1px solid var(--admin-accent);
+  color: var(--admin-accent-hi);
+  font-family: var(--admin-mono);
+  font-size: 0.82rem;
+  padding: 0.35rem 1rem;
+  cursor: pointer;
+  letter-spacing: 0.05em;
+  white-space: nowrap;
+}
+
+.admin-btn-primary:hover:not(:disabled) {
+  background: var(--admin-selected);
+  border-color: var(--admin-accent-hi);
+}
+
+.admin-btn-primary:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.admin-btn-ghost {
+  background: none;
+  border: none;
+  color: var(--admin-text-dim);
+  font-family: var(--admin-mono);
+  font-size: 0.78rem;
+  cursor: pointer;
+  padding: 0.3rem 0.5rem;
+}
+
+.admin-btn-ghost:hover {
+  color: var(--admin-text);
+}
+
+/* ── Content area ── */
+.admin-content {
+  flex: 1;
+  overflow: auto;
+  padding: 1.5rem;
+}
+
+/* ── Visitors tab ── */
+.admin-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.admin-table th {
+  text-align: left;
+  color: var(--admin-text-dim);
+  font-weight: normal;
+  text-transform: uppercase;
+  font-size: 0.75rem;
+  letter-spacing: 0.08em;
+  padding: 0.4rem 0.75rem;
+  border-bottom: 1px solid var(--admin-border);
+}
+
+.admin-table td {
+  padding: 0.5rem 0.75rem;
+  border-bottom: 1px solid var(--admin-border);
+  vertical-align: top;
+}
+
+.admin-row.clickable {
+  cursor: pointer;
+}
+
+.admin-row.clickable:hover td {
+  background: var(--admin-surface);
+}
+
+.admin-row.selected td {
+  background: var(--admin-selected);
+  border-bottom-color: var(--admin-border-light);
+}
+
+.admin-detail-row td {
+  padding: 0;
+  border-bottom: 1px solid var(--admin-border-light);
+}
+
+.admin-detail {
+  padding: 1rem 1.5rem 1.25rem;
+  background: var(--admin-selected);
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.admin-detail-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.admin-detail-label {
+  color: var(--admin-text-dim);
+  text-transform: uppercase;
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+}
+
+.admin-list {
+  margin: 0;
+  padding-left: 1.25rem;
+  color: var(--admin-text);
+}
+
+.admin-conv-btn {
+  display: block;
+  background: none;
+  border: 1px solid var(--admin-border);
+  color: var(--admin-accent);
+  font-family: var(--admin-mono);
+  font-size: 0.78rem;
+  padding: 0.25rem 0.6rem;
+  margin: 0.2rem 0;
+  cursor: pointer;
+  text-align: left;
+}
+
+.admin-conv-btn:hover,
+.admin-conv-btn.active {
+  border-color: var(--admin-accent);
+  color: var(--admin-accent-hi);
+  background: var(--admin-surface);
+}
+
+.admin-messages {
+  margin: 0.5rem 0 0.5rem 0.5rem;
+  border-left: 2px solid var(--admin-border-light);
+  padding-left: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.admin-message {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.admin-msg-role {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--admin-text-dim);
+}
+
+.admin-message.user .admin-msg-role { color: #6a8faf; }
+.admin-message.assistant .admin-msg-role { color: #8a7a6a; }
+
+.admin-msg-content {
+  color: var(--admin-text);
+  line-height: 1.5;
+  white-space: pre-wrap;
+}
+
+/* ── Actions tab ── */
+.admin-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  max-width: 700px;
+}
+
+.admin-action-card {
+  border: 1px solid var(--admin-border);
+  padding: 1rem 1.25rem;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  grid-template-rows: auto auto;
+  gap: 0.5rem 1rem;
+  align-items: start;
+}
+
+.admin-action-info {
+  grid-column: 1;
+  grid-row: 1;
+}
+
+.admin-action-card .admin-btn-primary {
+  grid-column: 2;
+  grid-row: 1;
+  align-self: start;
+}
+
+.admin-action-label {
+  color: var(--admin-accent-hi);
+  margin-bottom: 0.2rem;
+}
+
+.admin-action-desc {
+  color: var(--admin-text-dim);
+  font-size: 0.78rem;
+}
+
+.admin-action-result {
+  grid-column: 1 / -1;
+  grid-row: 2;
+  border-top: 1px solid var(--admin-border);
+  padding-top: 0.5rem;
+}
+
+.admin-action-result.ok pre { color: #6aaf7c; }
+.admin-action-result.err pre { color: #af6a6a; }
+
+/* ── State tab ── */
+.admin-state {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+.admin-state-section h2 {
+  font-size: 0.78rem;
+  font-weight: normal;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--admin-text-dim);
+  margin: 0 0 0.75rem;
+  padding-bottom: 0.4rem;
+  border-bottom: 1px solid var(--admin-border);
+}
+
+.admin-summary-card {
+  border: 1px solid var(--admin-border);
+  margin-bottom: 0.4rem;
+}
+
+.admin-summary-toggle {
+  display: flex;
+  justify-content: space-between;
+  width: 100%;
+  background: none;
+  border: none;
+  color: var(--admin-text);
+  font-family: var(--admin-mono);
+  font-size: 0.82rem;
+  padding: 0.5rem 0.75rem;
+  cursor: pointer;
+  text-align: left;
+}
+
+.admin-summary-toggle:hover {
+  background: var(--admin-surface);
+}
+
+/* ── Shared ── */
+.admin-json {
+  background: var(--admin-surface);
+  border: 1px solid var(--admin-border);
+  padding: 0.75rem 1rem;
+  font-size: 0.78rem;
+  color: var(--admin-text);
+  overflow: auto;
+  max-height: 500px;
+  white-space: pre;
+  margin: 0;
+}
+
+.admin-loading {
+  color: var(--admin-text-dim);
+  font-style: italic;
+  padding: 0.5rem 0;
+}
+
+.admin-empty {
+  color: var(--admin-text-dim);
+  padding: 0.5rem 0;
+}
+
+.admin-muted {
+  color: var(--admin-text-dim);
+}
+
+.admin-mono {
+  font-family: var(--admin-mono);
+}
+
+.admin-truncate {
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

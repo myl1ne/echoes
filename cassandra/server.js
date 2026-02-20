@@ -44,6 +44,7 @@ import {
   generateReflection
 } from './cassandraService.js';
 import { storage } from './storage/index.js';
+import { listConversationIds, getSummaries } from './storage/firestoreProvider.js';
 
 // Load environment variables
 dotenv.config();
@@ -484,6 +485,75 @@ app.get('/api/cassandra/admin/reflections', requireAdminToken, async (req, res) 
   } catch (error) {
     console.error('Error listing reflections:', error);
     res.status(500).json({ error: 'Failed to list reflections' });
+  }
+});
+
+/**
+ * List all visitors with their profiles (admin endpoint)
+ */
+app.get('/api/cassandra/admin/visitors', requireAdminToken, async (req, res) => {
+  try {
+    const visitorIds = await listVisitorIdsWithConversations();
+    const profiles = await Promise.all(visitorIds.map(id => loadVisitorProfile(id)));
+    const visitors = visitorIds.map((id, i) => ({ visitorId: id, ...profiles[i] }));
+    res.json({ visitors });
+  } catch (error) {
+    console.error('Error listing visitors:', error);
+    res.status(500).json({ error: 'Failed to list visitors' });
+  }
+});
+
+/**
+ * List conversations for a visitor (admin endpoint)
+ */
+app.get('/api/cassandra/admin/visitors/:visitorId/conversations', requireAdminToken, async (req, res) => {
+  try {
+    const { visitorId } = req.params;
+    const conversations = await listConversationIds(visitorId);
+    res.json({ conversations });
+  } catch (error) {
+    console.error('Error listing conversations:', error);
+    res.status(500).json({ error: 'Failed to list conversations' });
+  }
+});
+
+/**
+ * Get a specific conversation (admin endpoint)
+ */
+app.get('/api/cassandra/admin/visitors/:visitorId/conversations/:convId', requireAdminToken, async (req, res) => {
+  try {
+    const { visitorId, convId } = req.params;
+    const conversation = await loadConversation(visitorId, convId);
+    res.json({ conversation });
+  } catch (error) {
+    console.error('Error loading conversation:', error);
+    res.status(500).json({ error: 'Failed to load conversation' });
+  }
+});
+
+/**
+ * Get Cassandra's global state (admin endpoint)
+ */
+app.get('/api/cassandra/admin/state', requireAdminToken, async (req, res) => {
+  try {
+    const state = await loadState();
+    res.json({ state });
+  } catch (error) {
+    console.error('Error loading state:', error);
+    res.status(500).json({ error: 'Failed to load state' });
+  }
+});
+
+/**
+ * Get all day summaries (admin endpoint)
+ */
+app.get('/api/cassandra/admin/summaries', requireAdminToken, async (req, res) => {
+  try {
+    const summaries = await getSummaries();
+    res.json({ summaries });
+  } catch (error) {
+    console.error('Error loading summaries:', error);
+    res.status(500).json({ error: 'Failed to load summaries' });
   }
 });
 

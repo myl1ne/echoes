@@ -24,11 +24,17 @@ import {
 } from './ambientSoundscape';
 import AmbientSoundscape from './ambientSoundscape';
 import { DEFAULT_AMBIENT_VOLUME } from './constants';
+import AdminPanel from './admin/AdminPanel';
 
 const PREVIEW_EXCERPT_LENGTH = 150;
 const MAX_HISTORY = 20;
 
 function App() {
+  // Admin route — render admin panel instead of the book
+  if (window.location.pathname === '/admin') {
+    return <AdminPanel />;
+  }
+
   const [currentFragment, setCurrentFragment] = useState(null);
   const [connectedFragments, setConnectedFragments] = useState([]);
   const [fadeIn, setFadeIn] = useState(false);
