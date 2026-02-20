@@ -25,9 +25,9 @@ import { fileURLToPath } from 'url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const FRAGMENTS_ROOT = path.join(__dirname, '../../fragments');
-const OUTPUT_PATH   = path.join(__dirname, '../../misc-resources/voices.json');
+const OUTPUT_PATH   = path.join(__dirname, '../../public/voices.json');
 
-const FRAGMENT_DIRS = ['prologue', 'cycle1', 'cycle2', 'cycle3', 'epilogue', 'glyphs', 'analysis'];
+const FRAGMENT_DIRS = ['prologue', 'cycle1', 'cycle2', 'cycle3', 'epilogue'];
 
 const SYSTEM_PROMPT = `You are analyzing an experimental non-linear book called "One Chooses the Title of a Book Only at the End." The book has three main speaking voices:
 
@@ -167,20 +167,22 @@ async function main() {
   const skipped = total - ids.length;
   console.log(`\nAnalyzing ${ids.length} fragment(s) with Claude... (${skipped} already done)\n`);
 
+  fs.mkdirSync(path.dirname(OUTPUT_PATH), { recursive: true });
+
   for (const id of ids) {
     const { content } = toProcess[id];
     const { ok, result, err, secs } = await withTimer(id, () => analyzeFragment(client, id, content));
     if (ok) {
       results[id] = result;
       process.stdout.write(`\r  ${id} ... ${result.length} segments (${secs}s)\n`);
+      // Save after each fragment so interruptions don't lose progress
+      fs.writeFileSync(OUTPUT_PATH, JSON.stringify(results, null, 2), 'utf8');
     } else {
       process.stdout.write(`\r  ${id} ... ERROR: ${err.message} (${secs}s)\n`);
     }
   }
 
-  fs.mkdirSync(path.dirname(OUTPUT_PATH), { recursive: true });
-  fs.writeFileSync(OUTPUT_PATH, JSON.stringify(results, null, 2), 'utf8');
-  console.log(`\nSaved to ${OUTPUT_PATH}`);
+  console.log(`\nDone. Results in ${OUTPUT_PATH}`);
 }
 
 main();

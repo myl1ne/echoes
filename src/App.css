@@ -237,6 +237,41 @@ body::before {
   letter-spacing: 0.01em;
 }
 
+/* ── Voice segments ── */
+.voice-segment {
+  white-space: pre-line;
+}
+
+/* Stephane — the biographical narrator. Dense, warm, default. */
+.voice-stephane {
+  color: var(--text);
+  font-style: normal;
+  font-weight: 400;
+}
+
+/* Cassandra — the AI in the glass cabin. Lighter, slightly cooler, italic lean. */
+.voice-cassandra {
+  color: rgba(208, 222, 235, 0.88);
+  font-style: italic;
+  font-weight: 300;
+  letter-spacing: 0.012em;
+}
+
+/* Reader — your own inner voice. Clearest, brightest, present tense. */
+.voice-reader {
+  color: rgba(245, 240, 228, 0.96);
+  font-style: normal;
+  font-weight: 400;
+  letter-spacing: 0.018em;
+}
+
+/* Mixed — interleaving voices. No treatment; content carries the meaning. */
+.voice-mixed {
+  color: var(--text);
+  font-style: normal;
+  font-weight: 400;
+}
+
 /* Drop cap */
 .fragment-content::first-letter {
   font-size: 3.4rem;
