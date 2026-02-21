@@ -604,6 +604,34 @@ app.get('/api/thread/drafts', requireAdminToken, async (req, res) => {
 });
 
 /**
+ * List Thread's notes (admin endpoint)
+ */
+app.get('/api/thread/notes', requireAdminToken, async (req, res) => {
+  try {
+    const limit = Math.min(parseInt(req.query.limit) || 50, 100);
+    const readFilter = req.query.read === 'true' ? true : req.query.read === 'false' ? false : null;
+    const notes = await storage.listThreadNotes(limit, readFilter);
+    res.json({ notes });
+  } catch (error) {
+    console.error('[thread] Error listing notes:', error);
+    res.status(500).json({ error: 'Failed to list Thread notes' });
+  }
+});
+
+/**
+ * Mark Thread note as read (admin endpoint)
+ */
+app.patch('/api/thread/notes/:noteId', requireAdminToken, async (req, res) => {
+  try {
+    await storage.markThreadNoteRead(req.params.noteId);
+    res.json({ success: true });
+  } catch (error) {
+    console.error('[thread] Error marking note as read:', error);
+    res.status(500).json({ error: 'Failed to mark note as read' });
+  }
+});
+
+/**
  * Audio generation proxy (keeps ElevenLabs API key server-side)
  */
 app.post('/api/audio/generate', async (req, res) => {

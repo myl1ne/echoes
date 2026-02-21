@@ -157,6 +157,34 @@ export async function listThreadDrafts(limit = 20) {
   return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 }
 
+export async function saveThreadNote(timestamp, recipient, subject, content, urgency) {
+  await getDb().collection('thread_notes').doc(timestamp).set({
+    recipient,
+    subject,
+    content,
+    urgency,
+    generatedAt: new Date().toISOString(),
+    read: false,
+  });
+}
+
+export async function listThreadNotes(limit = 50, readFilter = null) {
+  let query = getDb().collection('thread_notes')
+    .orderBy('generatedAt', 'desc')
+    .limit(limit);
+  
+  if (readFilter !== null) {
+    query = query.where('read', '==', readFilter);
+  }
+  
+  const snapshot = await query.get();
+  return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+}
+
+export async function markThreadNoteRead(noteId) {
+  await getDb().collection('thread_notes').doc(noteId).update({ read: true });
+}
+
 // ─── Reflections ──────────────────────────────────────────────────────────────
 
 export async function saveReflection(timestamp, content, date) {
@@ -200,4 +228,7 @@ export const firestoreProvider = {
   listThreadJournal,
   saveThreadDraft,
   listThreadDrafts,
+  saveThreadNote,
+  listThreadNotes,
+  markThreadNoteRead,
 };

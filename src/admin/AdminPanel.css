@@ -510,3 +510,66 @@
   gap: 0.5rem;
   align-items: center;
 }
+
+/* ── Thread tab ── */
+.admin-thread {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+.admin-thread-notes {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.admin-thread-note {
+  border: 1px solid var(--admin-border);
+  padding: 0.75rem 1rem;
+  background: var(--admin-surface);
+}
+
+.admin-thread-note.unread {
+  border-left: 3px solid var(--admin-accent);
+  background: var(--admin-selected);
+}
+
+.admin-thread-note-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 0.5rem;
+}
+
+.admin-thread-note-subject {
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--admin-accent-hi);
+}
+
+.admin-thread-note-meta {
+  font-size: 0.72rem;
+  color: var(--admin-text-dim);
+}
+
+.admin-thread-note-content {
+  font-size: 0.85rem;
+  line-height: 1.6;
+  color: var(--admin-text);
+  margin-bottom: 0.75rem;
+  white-space: pre-wrap;
+}
+
+.admin-thread-journal-content,
+.admin-thread-draft-content {
+  font-size: 0.85rem;
+  line-height: 1.6;
+  color: var(--admin-text);
+  white-space: pre-wrap;
+}
+
+.admin-btn-sm {
+  font-size: 0.72rem;
+  padding: 0.25rem 0.5rem;
+}

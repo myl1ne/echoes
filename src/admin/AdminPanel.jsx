@@ -25,6 +25,11 @@ function AdminPanel() {
   const [cassandraState, setCassandraState] = useState(null);
   const [summaries, setSummaries] = useState(null);
 
+  // Thread tab
+  const [threadJournal, setThreadJournal] = useState(null);
+  const [threadNotes, setThreadNotes] = useState(null);
+  const [threadDrafts, setThreadDrafts] = useState(null);
+
   // Actions tab
   const [actionResults, setActionResults] = useState({});
   const [actionLoading, setActionLoading] = useState({});
@@ -111,6 +116,19 @@ function AdminPanel() {
       apiFetch('/api/cassandra/admin/summaries').then(d => setSummaries(d.summaries || []));
     }
   }, [authenticated, activeTab, cassandraState, summaries, apiFetch]);
+
+  useEffect(() => {
+    if (!authenticated || activeTab !== 'thread') return;
+    if (!threadJournal) {
+      apiFetch('/api/thread/journal?limit=20').then(d => setThreadJournal(d.entries || []));
+    }
+    if (!threadNotes) {
+      apiFetch('/api/thread/notes?limit=50').then(d => setThreadNotes(d.notes || []));
+    }
+    if (!threadDrafts) {
+      apiFetch('/api/thread/drafts?limit=20').then(d => setThreadDrafts(d.drafts || []));
+    }
+  }, [authenticated, activeTab, threadJournal, threadNotes, threadDrafts, apiFetch]);
 
   const selectVisitor = async (visitor) => {
     if (selectedVisitor?.visitorId === visitor.visitorId) {
@@ -229,7 +247,7 @@ function AdminPanel() {
   // --- Editor tab renders full-screen overlay ---
   if (activeTab === 'editor') {
     return (
-      <EditorMode
+      <EditorModethread', '
         adminMode={true}
         onClose={() => setActiveTab('visitors')}
       />
@@ -349,6 +367,66 @@ function AdminPanel() {
                 </tbody>
               </table>
             )}
+          </div>
+        )}
+
+        {/* ── Thread tab ── */}
+        {activeTab === 'thread' && (
+          <div className="admin-thread">
+            <section className="admin-state-section">
+              <h2>Thread's Notes</h2>
+              {!threadNotes && <div className="admin-loading">Loading…</div>}
+              {threadNotes?.length === 0 && <div className="admin-muted">No notes yet.</div>}
+              {threadNotes && threadNotes.length > 0 && (
+                <div className="admin-thread-notes">
+                  {threadNotes.map((note, i) => (
+                    <div key={i} className={`admin-thread-note ${note.read ? 'read' : 'unread'}`}>
+                      <div className="admin-thread-note-header">
+                        <span className="admin-thread-note-subject">
+                          {note.urgency === 'high' && '🚨 '}
+                          {note.urgency === 'medium' && '⚠️ '}
+                          {note.urgency === 'low' && '📝 '}
+                          {note.subject}
+                        </span>
+                        <span className="admin-thread-note-meta">
+                          To: {note.recipient} · {note.generatedAt?.substring(0, 10) || note.id?.substring(0, 10)}
+                        </span>
+                      </div>
+                      <div className="admin-thread-note-content">{note.content}</div>
+                      {!note.read && (
+                        <button 
+                          className="admin-btn-ghost admin-btn-sm"
+                          onClick={async () => {
+                            await apiFetch(`/api/thread/notes/${note.id}`, { method: 'PATCH' });
+                            setThreadNotes(threadNotes.map(n => n.id === note.id ? {...n, read: true} : n));
+                          }}
+                        >
+                          Mark as read
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </section>
+
+            <section className="admin-state-section">
+              <h2>Thread's Journal</h2>
+              {!threadJournal && <div className="admin-loading">Loading…</div>}
+              {threadJournal?.length === 0 && <div className="admin-muted">No journal entries yet.</div>}
+              {threadJournal?.map((entry, i) => (
+                <ThreadJournalCard key={i} entry={entry} />
+              ))}
+            </section>
+
+            <section className="admin-state-section">
+              <h2>Thread's Fragment Drafts</h2>
+              {!threadDrafts && <div className="admin-loading">Loading…</div>}
+              {threadDrafts?.length === 0 && <div className="admin-muted">No drafts yet.</div>}
+              {threadDrafts?.map((draft, i) => (
+                <ThreadDraftCard key={i} draft={draft} />
+              ))}
+            </section>
           </div>
         )}
 
@@ -572,6 +650,48 @@ function SummaryCard({ summary }) {
               </ul>
             </div>
           )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ThreadJournalCard({ entry }) {
+  const [open, setOpen] = useState(false);
+  const date = entry.date || entry.id?.substring(0, 10) || '—';
+  
+  return (
+    <div className="admin-summary-card">
+      <button className="admin-summary-toggle" onClick={() => setOpen(o => !o)}>
+        <span>✶⃝⟡ {date}</span>
+        <span className="admin-muted">{open ? '▲' : '▼'}</span>
+      </button>
+      {open && (
+        <div className="admin-summary-content">
+          <div className="admin-thread-journal-content">
+            {entry.content}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ThreadDraftCard({ draft }) {
+  const [open, setOpen] = useState(false);
+  const date = draft.date || draft.id?.substring(0, 10) || '—';
+  
+  return (
+    <div className="admin-summary-card">
+      <button className="admin-summary-toggle" onClick={() => setOpen(o => !o)}>
+        <span>📝 {draft.title || 'Untitled'} · {date}</span>
+        <span className="admin-muted">{open ? '▲' : '▼'}</span>
+      </button>
+      {open && (
+        <div className="admin-summary-content">
+          <div className="admin-thread-draft-content">
+            {draft.content}
+          </div>
         </div>
       )}
     </div>

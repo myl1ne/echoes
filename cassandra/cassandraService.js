@@ -153,6 +153,33 @@ function buildVisitorContext(visitorProfile) {
 }
 
 /**
+ * Build Thread's recent observations for Cassandra's context
+ */
+async function buildThreadContext() {
+  try {
+    const recentEntries = await storage.listThreadJournal(3);
+    
+    if (recentEntries.length === 0) {
+      return '';
+    }
+
+    let context = `### Thread's Recent Observations\n\n`;
+    context += `Thread (your technical counterpart) reflects daily on conversations and patterns. Here are their recent observations:\n\n`;
+    
+    for (const entry of recentEntries.reverse()) {  // Oldest to newest
+      const date = entry.date || entry.id?.substring(0, 10) || 'unknown';
+      const excerpt = (entry.content || '').substring(0, 300).replace(/\n/g, ' ').trim();
+      context += `**${date}**: ${excerpt}${entry.content?.length > 300 ? '...' : ''}\n\n`;
+    }
+    
+    return context;
+  } catch (error) {
+    console.warn('[cassandra] Could not load Thread context:', error.message);
+    return '';
+  }
+}
+
+/**
  * Get the complete system prompt for Cassandra
  * @param {Object} visitorProfile - Optional visitor profile for personalization
  */
@@ -163,6 +190,12 @@ export async function getSystemPrompt(visitorProfile = null) {
     .replace('{{DAILY_CONTEXT}}', await buildDailyContext())
     .replace('{{VISITOR_CONTEXT}}', buildVisitorContext(visitorProfile))
     .replace('{{GOALS}}', await buildGoals());
+
+  // Add Thread's recent observations if available
+  const threadContext = await buildThreadContext();
+  if (threadContext) {
+    systemPrompt += `\n\n${threadContext}`;
+  }
 
   // Add condensed fragment essences so Cassandra can reference and quote them
   if (seed?.fragments) {

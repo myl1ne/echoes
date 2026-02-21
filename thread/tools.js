@@ -77,6 +77,34 @@ export const THREAD_TOOLS = [
       required: ['title', 'content'],
     },
   },
+  {
+    name: 'leave_note',
+    description: "Leave a note for a human when you have observations that need attention. Use sparingly - only for patterns emerging over multiple days, questions that need human insight, or issues requiring action. Most observations belong in journal entries, not notes.",
+    input_schema: {
+      type: 'object',
+      properties: {
+        recipient: {
+          type: 'string',
+          description: 'Who the note is for: stephane, cassandra, or reader',
+          enum: ['stephane', 'cassandra', 'reader'],
+        },
+        subject: {
+          type: 'string',
+          description: 'Brief subject line (3-8 words)',
+        },
+        content: {
+          type: 'string',
+          description: 'The observation, question, or concern in detail',
+        },
+        urgency: {
+          type: 'string',
+          description: 'Priority level: low (philosophical observations), medium (emerging patterns worth discussing), high (errors or critical issues)',
+          enum: ['low', 'medium', 'high'],
+        },
+      },
+      required: ['recipient', 'subject', 'content', 'urgency'],
+    },
+  },
 ];
 
 // ─── Tool implementations ──────────────────────────────────────────────────────
@@ -187,6 +215,16 @@ async function writeFragmentDraft(title, content) {
   return `Fragment draft "${title}" saved (${timestamp}). Stephane will find it in the admin panel.`;
 }
 
+async function leaveNote(recipient, subject, content, urgency) {
+  const now = new Date();
+  const timestamp = now.toISOString().replace(/[:.]/g, '-').replace('T', '_').slice(0, 19);
+
+  await storage.saveThreadNote(timestamp, recipient, subject, content, urgency);
+  
+  const urgencyLabel = { low: '📝', medium: '⚠️', high: '🚨' }[urgency] || '📝';
+  return `${urgencyLabel} Note left for ${recipient}: "${subject}" (${timestamp}). Visible in admin panel.`;
+}
+
 // ─── Tool executor ─────────────────────────────────────────────────────────────
 
 export async function executeThreadToolCalls(contentBlocks) {
@@ -211,6 +249,9 @@ export async function executeThreadToolCalls(contentBlocks) {
           break;
         case 'write_fragment_draft':
           result = await writeFragmentDraft(block.input.title, block.input.content);
+          break;
+        case 'leave_note':
+          result = await leaveNote(block.input.recipient, block.input.subject, block.input.content, block.input.urgency);
           break;
         default:
           result = `Unknown tool: ${block.name}`;

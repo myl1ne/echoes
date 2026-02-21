@@ -212,6 +212,49 @@ export async function listThreadDrafts(limit = 20) {
     });
 }
 
+const THREAD_NOTES_DIR = path.join(STATE_DIR, 'thread-notes');
+
+export async function saveThreadNote(timestamp, recipient, subject, content, urgency) {
+  ensureDir(THREAD_NOTES_DIR);
+  writeJSON(path.join(THREAD_NOTES_DIR, `${timestamp}.json`), {
+    recipient,
+    subject,
+    content,
+    urgency,
+    generatedAt: new Date().toISOString(),
+    read: false,
+  });
+}
+
+export async function listThreadNotes(limit = 50, readFilter = null) {
+  ensureDir(THREAD_NOTES_DIR);
+  const notes = fs.readdirSync(THREAD_NOTES_DIR)
+    .filter(f => f.endsWith('.json'))
+    .sort()
+    .reverse()
+    .slice(0, limit)
+    .map(f => {
+      const data = readJSON(path.join(THREAD_NOTES_DIR, f));
+      return { id: f.replace('.json', ''), ...data };
+    });
+  
+  if (readFilter !== null) {
+    return notes.filter(n => n.read === readFilter);
+  }
+  
+  return notes;
+}
+
+export async function markThreadNoteRead(noteId) {
+  ensureDir(THREAD_NOTES_DIR);
+  const filepath = path.join(THREAD_NOTES_DIR, `${noteId}.json`);
+  if (fs.existsSync(filepath)) {
+    const data = readJSON(filepath);
+    data.read = true;
+    writeJSON(filepath, data);
+  }
+}
+
 // ─── Reflections ──────────────────────────────────────────────────────────────
 
 export async function saveReflection(timestamp, content, date) {
@@ -255,4 +298,7 @@ export const localProvider = {
   listThreadJournal,
   saveThreadDraft,
   listThreadDrafts,
+  saveThreadNote,
+  listThreadNotes,
+  markThreadNoteRead,
 };
