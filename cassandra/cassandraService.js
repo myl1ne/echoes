@@ -19,20 +19,17 @@ const __dirname = path.dirname(__filename);
  * Extract JSON from Claude's response, handling markdown code blocks
  */
 function extractJSON(content) {
-  // Try to extract from markdown code block (```json...``` or ```...```)
-  const codeBlockMatch = content.match(/```(?:json)?\s*\n?([\s\S]*?)\n?```/i);
-  if (codeBlockMatch) {
-    return codeBlockMatch[1].trim();
-  }
+  // Remove markdown code block markers if present
+  // Handles: ```json\n{...}\n``` or ```\n{...}\n``` or just {...}
+  let cleaned = content.trim();
   
-  // If no code block, look for raw JSON object
-  const jsonMatch = content.match(/\{[\s\S]*\}/);
-  if (jsonMatch) {
-    return jsonMatch[0].trim();
-  }
+  // Strip opening fence (```json or ``` followed by optional whitespace)
+  cleaned = cleaned.replace(/^```(?:json)?\s*\n?/i, '');
   
-  // Return as-is if neither pattern matches
-  return content.trim();
+  // Strip closing fence (``` at end, possibly with trailing whitespace)
+  cleaned = cleaned.replace(/\n?```\s*$/i, '');
+  
+  return cleaned.trim();
 }
 
 /**
