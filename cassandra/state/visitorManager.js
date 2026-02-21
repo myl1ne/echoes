@@ -94,11 +94,14 @@ export async function updateVisitorFromSummary(visitorId, summaryData) {
     profile.recentThemes = summaryData.recentThemes;
   }
   if (summaryData.knownFacts) {
+    // Deduplicate exact matches, then keep only most recent 10 facts
+    // (prevents infinite accumulation from semantically similar but syntactically different facts)
     const existingFacts = new Set(profile.knownFacts || []);
     for (const fact of summaryData.knownFacts) {
       existingFacts.add(fact);
     }
-    profile.knownFacts = Array.from(existingFacts);
+    const allFacts = Array.from(existingFacts);
+    profile.knownFacts = allFacts.slice(-10); // Keep most recent 10
   }
   if (summaryData.tone) {
     profile.tone = summaryData.tone;
