@@ -35,6 +35,19 @@ function extractJSON(content) {
   return content.trim();
 }
 
+/**
+ * Safe JSON parse with better error messages
+ */
+function safeParseJSON(content, context = '') {
+  try {
+    return JSON.parse(content);
+  } catch (error) {
+    console.error(`❌ JSON parse error${context ? ` in ${context}` : ''}:`);
+    console.error(`Raw content (first 200 chars): ${content.substring(0, 200)}`);
+    throw error;
+  }
+}
+
 // Load seed data (the book fragments) — cached in memory
 const SEED_FILE = path.join(__dirname, 'seed.json');
 let seedData = null;
@@ -359,7 +372,7 @@ export async function generateStartOfDaySummary(previousSummaries) {
   });
 
   const content = extractJSON(response.content[0].text);
-  return JSON.parse(content);
+  return safeParseJSON(content, 'generateStartOfDaySummary');
 }
 
 /**
@@ -386,7 +399,7 @@ export async function generateVisitorSummary(conversationMessages, existingProfi
   });
 
   const content = extractJSON(response.content[0].text);
-  return JSON.parse(content);
+  return safeParseJSON(content, 'generateVisitorSummary');
 }
 
 /**
@@ -447,5 +460,6 @@ export async function generateEndOfDaySummary(conversationMessages) {
   });
 
   const content = extractJSON(response.content[0].text);
-  return JSON.parse(content);
+  return safeParseJSON(content, 'generateReflection');
 }
+
