@@ -600,51 +600,54 @@ function SummaryCard({ summary }) {
       </button>
       {open && (
         <div className="admin-summary-content">
-          {data.overallSummary && (
+          {data.daySummary && (
             <div className="admin-state-field">
               <div className="admin-state-label">Summary</div>
-              <div className="admin-state-value">{data.overallSummary}</div>
+              <div className="admin-state-value">{data.daySummary}</div>
             </div>
           )}
           
-          {data.keyTopics && data.keyTopics.length > 0 && (
+          {data.insights && data.insights.length > 0 && (
             <div className="admin-state-field">
-              <div className="admin-state-label">Key Topics</div>
+              <div className="admin-state-label">Insights</div>
               <ul className="admin-state-list">
-                {data.keyTopics.map((topic, i) => (
-                  <li key={i}>{topic}</li>
+                {data.insights.map((insight, i) => (
+                  <li key={i}>{insight}</li>
                 ))}
               </ul>
             </div>
           )}
           
-          {data.significantMoments && data.significantMoments.length > 0 && (
+          {data.aboutThem && (
             <div className="admin-state-field">
-              <div className="admin-state-label">Significant Moments</div>
+              <div className="admin-state-label">About Them</div>
+              <div className="admin-state-value">{data.aboutThem}</div>
+            </div>
+          )}
+          
+          {data.aboutYourself && (
+            <div className="admin-state-field">
+              <div className="admin-state-label">About Yourself</div>
+              <div className="admin-state-value">{data.aboutYourself}</div>
+            </div>
+          )}
+          
+          {data.continuingThemes && data.continuingThemes.length > 0 && (
+            <div className="admin-state-field">
+              <div className="admin-state-label">Continuing Themes</div>
               <ul className="admin-state-list">
-                {data.significantMoments.map((moment, i) => (
-                  <li key={i}>{moment}</li>
+                {data.continuingThemes.map((theme, i) => (
+                  <li key={i}>{theme}</li>
                 ))}
               </ul>
             </div>
           )}
           
-          {data.emergingPatterns && data.emergingPatterns.length > 0 && (
+          {data.newQuestions && data.newQuestions.length > 0 && (
             <div className="admin-state-field">
-              <div className="admin-state-label">Emerging Patterns</div>
+              <div className="admin-state-label">New Questions</div>
               <ul className="admin-state-list">
-                {data.emergingPatterns.map((pattern, i) => (
-                  <li key={i}>{pattern}</li>
-                ))}
-              </ul>
-            </div>
-          )}
-          
-          {data.questionsToCarryForward && data.questionsToCarryForward.length > 0 && (
-            <div className="admin-state-field">
-              <div className="admin-state-label">Questions to Carry Forward</div>
-              <ul className="admin-state-list">
-                {data.questionsToCarryForward.map((q, i) => (
+                {data.newQuestions.map((q, i) => (
                   <li key={i}>{q}</li>
                 ))}
               </ul>
