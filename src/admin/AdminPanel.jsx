@@ -247,7 +247,7 @@ function AdminPanel() {
   // --- Editor tab renders full-screen overlay ---
   if (activeTab === 'editor') {
     return (
-      <EditorModethread', '
+      <EditorMode
         adminMode={true}
         onClose={() => setActiveTab('visitors')}
       />
