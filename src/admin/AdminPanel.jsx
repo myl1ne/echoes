@@ -390,7 +390,54 @@ function AdminPanel() {
               <h2>Cassandra's Global State</h2>
               {!cassandraState && <div className="admin-loading">Loading…</div>}
               {cassandraState && (
-                <pre className="admin-json">{JSON.stringify(cassandraState, null, 2)}</pre>
+                <div className="admin-state-display">
+                  {cassandraState.lifetimeSummary && (
+                    <div className="admin-state-field">
+                      <div className="admin-state-label">Lifetime Summary</div>
+                      <div className="admin-state-value">{cassandraState.lifetimeSummary}</div>
+                    </div>
+                  )}
+                  
+                  {cassandraState.recentThemes && cassandraState.recentThemes.length > 0 && (
+                    <div className="admin-state-field">
+                      <div className="admin-state-label">Recent Themes</div>
+                      <ul className="admin-state-list">
+                        {cassandraState.recentThemes.map((theme, i) => (
+                          <li key={i}>{theme}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                  
+                  {cassandraState.ongoingQuestions && cassandraState.ongoingQuestions.length > 0 && (
+                    <div className="admin-state-field">
+                      <div className="admin-state-label">Ongoing Questions</div>
+                      <ul className="admin-state-list">
+                        {cassandraState.ongoingQuestions.map((q, i) => (
+                          <li key={i}>{q}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                  
+                  {cassandraState.todayGoals && cassandraState.todayGoals.length > 0 && (
+                    <div className="admin-state-field">
+                      <div className="admin-state-label">Today's Goals</div>
+                      <ul className="admin-state-list">
+                        {cassandraState.todayGoals.map((goal, i) => (
+                          <li key={i}>{goal}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                  
+                  {cassandraState.lastUpdated && (
+                    <div className="admin-state-field">
+                      <div className="admin-state-label">Last Updated</div>
+                      <div className="admin-state-value admin-muted">{cassandraState.lastUpdated}</div>
+                    </div>
+                  )}
+                </div>
               )}
             </section>
 
@@ -465,6 +512,8 @@ function AdminPanel() {
 function SummaryCard({ summary }) {
   const [open, setOpen] = useState(false);
   const date = summary.date || summary.id || '—';
+  const data = summary.summary || summary;
+  
   return (
     <div className="admin-summary-card">
       <button className="admin-summary-toggle" onClick={() => setOpen(o => !o)}>
@@ -472,7 +521,58 @@ function SummaryCard({ summary }) {
         <span className="admin-muted">{open ? '▲' : '▼'}</span>
       </button>
       {open && (
-        <pre className="admin-json">{JSON.stringify(summary, null, 2)}</pre>
+        <div className="admin-summary-content">
+          {data.overallSummary && (
+            <div className="admin-state-field">
+              <div className="admin-state-label">Summary</div>
+              <div className="admin-state-value">{data.overallSummary}</div>
+            </div>
+          )}
+          
+          {data.keyTopics && data.keyTopics.length > 0 && (
+            <div className="admin-state-field">
+              <div className="admin-state-label">Key Topics</div>
+              <ul className="admin-state-list">
+                {data.keyTopics.map((topic, i) => (
+                  <li key={i}>{topic}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+          
+          {data.significantMoments && data.significantMoments.length > 0 && (
+            <div className="admin-state-field">
+              <div className="admin-state-label">Significant Moments</div>
+              <ul className="admin-state-list">
+                {data.significantMoments.map((moment, i) => (
+                  <li key={i}>{moment}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+          
+          {data.emergingPatterns && data.emergingPatterns.length > 0 && (
+            <div className="admin-state-field">
+              <div className="admin-state-label">Emerging Patterns</div>
+              <ul className="admin-state-list">
+                {data.emergingPatterns.map((pattern, i) => (
+                  <li key={i}>{pattern}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+          
+          {data.questionsToCarryForward && data.questionsToCarryForward.length > 0 && (
+            <div className="admin-state-field">
+              <div className="admin-state-label">Questions to Carry Forward</div>
+              <ul className="admin-state-list">
+                {data.questionsToCarryForward.map((q, i) => (
+                  <li key={i}>{q}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </div>
       )}
     </div>
   );
