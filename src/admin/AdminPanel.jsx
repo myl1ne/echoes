@@ -260,7 +260,7 @@ function AdminPanel() {
       <header className="admin-header">
         <span className="admin-header-title">✶⃝⟡ Cassandra Admin</span>
         <nav className="admin-tabs">
-          {['visitors', 'actions', 'state', 'generate', 'editor'].map(tab => (
+          {['visitors', 'actions', 'state', 'thread', 'generate', 'editor'].map(tab => (
             <button
               key={tab}
               className={`admin-tab ${activeTab === tab ? 'active' : ''}`}
