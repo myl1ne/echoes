@@ -365,7 +365,7 @@ export async function generateStartOfDaySummary(previousSummaries) {
       content: `Current state:\n${JSON.stringify(state, null, 2)}\n\nRecent summaries:\n${JSON.stringify(previousSummaries, null, 2)}\n\n${START_OF_DAY_PROMPT}`,
     }],
     temperature: 0.7,
-    max_tokens: 1000,
+    max_tokens: 1500,
   });
 
   const content = extractJSON(response.content[0].text);
@@ -392,7 +392,7 @@ export async function generateVisitorSummary(conversationMessages, existingProfi
       content: `Conversation:\n${JSON.stringify(conversationMessages, null, 2)}${profileContext}\n\n${VISITOR_SUMMARY_PROMPT}`,
     }],
     temperature: 0.7,
-    max_tokens: 800,
+    max_tokens: 2000,
   });
 
   const content = extractJSON(response.content[0].text);
@@ -453,10 +453,10 @@ export async function generateEndOfDaySummary(conversationMessages) {
       content: `Today's conversation:\n${JSON.stringify(conversationMessages, null, 2)}\n\n${END_OF_DAY_PROMPT}`,
     }],
     temperature: 0.7,
-    max_tokens: 1000,
+    max_tokens: 1500,
   });
 
   const content = extractJSON(response.content[0].text);
-  return safeParseJSON(content, 'generateReflection');
+  return safeParseJSON(content, 'generateEndOfDaySummary');
 }
 
