@@ -15,6 +15,26 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+/**
+ * Extract JSON from Claude's response, handling markdown code blocks
+ */
+function extractJSON(content) {
+  // Try to extract from markdown code block (```json...``` or ```...```)
+  const codeBlockMatch = content.match(/```(?:json)?\s*\n?([\s\S]*?)\n?```/i);
+  if (codeBlockMatch) {
+    return codeBlockMatch[1].trim();
+  }
+  
+  // If no code block, look for raw JSON object
+  const jsonMatch = content.match(/\{[\s\S]*\}/);
+  if (jsonMatch) {
+    return jsonMatch[0].trim();
+  }
+  
+  // Return as-is if neither pattern matches
+  return content.trim();
+}
+
 // Load seed data (the book fragments) — cached in memory
 const SEED_FILE = path.join(__dirname, 'seed.json');
 let seedData = null;
@@ -338,9 +358,7 @@ export async function generateStartOfDaySummary(previousSummaries) {
     max_tokens: 1000,
   });
 
-  let content = response.content[0].text;
-  const jsonMatch = content.match(/```(?:json)?\s*\n([\s\S]*?)\n```/);
-  if (jsonMatch) content = jsonMatch[1];
+  const content = extractJSON(response.content[0].text);
   return JSON.parse(content);
 }
 
@@ -367,9 +385,7 @@ export async function generateVisitorSummary(conversationMessages, existingProfi
     max_tokens: 800,
   });
 
-  let content = response.content[0].text;
-  const jsonMatch = content.match(/```(?:json)?\s*\n([\s\S]*?)\n```/);
-  if (jsonMatch) content = jsonMatch[1];
+  const content = extractJSON(response.content[0].text);
   return JSON.parse(content);
 }
 
@@ -430,8 +446,6 @@ export async function generateEndOfDaySummary(conversationMessages) {
     max_tokens: 1000,
   });
 
-  let content = response.content[0].text;
-  const jsonMatch = content.match(/```(?:json)?\s*\n([\s\S]*?)\n```/);
-  if (jsonMatch) content = jsonMatch[1];
+  const content = extractJSON(response.content[0].text);
   return JSON.parse(content);
 }
