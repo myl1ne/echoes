@@ -3,7 +3,7 @@ import './CassandraChat.css';
 
 /**
  * CassandraChat - A hidden chat interface to converse with Cassandra
- * Access: Press Ctrl/Cmd + Shift + C, or click Echo bird 7 times
+ * Access: Desktop: Ctrl/Cmd + Shift + C | Mobile: Long press Echo bird (800ms)
  */
 let nextMsgId = 1;
 function generateMsgId() {

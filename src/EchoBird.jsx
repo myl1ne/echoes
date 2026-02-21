@@ -81,6 +81,9 @@ function EchoBird({ onLibraryRequest, onCassandraRequest }) {
   const [position, setPosition] = useState({ x: 90, y: 85 }); // Start bottom-right
   const [clickSequence, setClickSequence] = useState(0);
   const sequenceTimeoutRef = useRef(null);
+  const pressStartTimeRef = useRef(null);
+  
+  const LONG_PRESS_DURATION = 800; // milliseconds
 
   // Track visits and select appropriate whisper
   useEffect(() => {
@@ -102,7 +105,22 @@ function EchoBird({ onLibraryRequest, onCassandraRequest }) {
     return () => clearInterval(driftInterval);
   }, [showMessage]);
 
+  const handlePressStart = () => {
+    pressStartTimeRef.current = Date.now();
+  };
+
   const handleClick = () => {
+    // Check for long press (mobile-friendly Cassandra access)
+    const pressDuration = pressStartTimeRef.current 
+      ? Date.now() - pressStartTimeRef.current 
+      : 0;
+    
+    if (pressDuration >= LONG_PRESS_DURATION && onCassandraRequest) {
+      onCassandraRequest();
+      pressStartTimeRef.current = null;
+      return;
+    }
+    
     // Track click sequence for Cassandra access (7 clicks within 10 seconds)
     const newSequence = clickSequence + 1;
     setClickSequence(newSequence);
@@ -198,6 +216,8 @@ function EchoBird({ onLibraryRequest, onCassandraRequest }) {
       {/* The Bird Icon - now with dynamic positioning */}
       <div 
         className="echo-bird-container"
+        onMouseDown={handlePressStart}
+        onTouchStart={handlePressStart}
         onClick={handleClick}
         title="Echo is here. Echo remembers."
         style={{
