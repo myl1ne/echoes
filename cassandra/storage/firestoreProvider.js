@@ -33,10 +33,10 @@ export async function setGlobalState(state) {
 // ─── Summaries ────────────────────────────────────────────────────────────────
 
 export async function getSummaries() {
-  const snapshot = await getDb().collection('cassandra_summaries')
-    .orderBy('date', 'desc')
-    .get();
-  return snapshot.docs.map(doc => ({ date: doc.id, summary: doc.data() }));
+  const snapshot = await getDb().collection('cassandra_summaries').get();
+  // Sort by document ID (which is the date) in descending order
+  const summaries = snapshot.docs.map(doc => ({ date: doc.id, summary: doc.data() }));
+  return summaries.sort((a, b) => b.date.localeCompare(a.date));
 }
 
 export async function saveSummary(date, summary) {
