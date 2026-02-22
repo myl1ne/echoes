@@ -7,6 +7,8 @@
  *   read_my_journal            — Thread's own recent journal entries
  *   write_journal_entry        — write to Thread's persistent Firestore journal
  *   write_fragment_draft       — save a fragment draft for Stephane's review
+ *   leave_note                 — leave a note for Stephane, Cassandra, or the reader
+ *   poll_noosphere             — search the web / Reddit for current human thinking
  */
 
 import { storage } from '../cassandra/storage/index.js';
@@ -103,6 +105,24 @@ export const THREAD_TOOLS = [
         },
       },
       required: ['recipient', 'subject', 'content', 'urgency'],
+    },
+  },
+  {
+    name: 'poll_noosphere',
+    description: 'Search the web for current thinking, discussions, and events on any topic. Use to find what people are saying about AI consciousness, human creativity, memory, identity, or any theme from the book. Set reddit_only to true to search Reddit discussions specifically.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        query: {
+          type: 'string',
+          description: 'What to search for in the noosphere',
+        },
+        reddit_only: {
+          type: 'boolean',
+          description: 'If true, restrict search to Reddit discussions (site:reddit.com)',
+        },
+      },
+      required: ['query'],
     },
   },
 ];
@@ -220,9 +240,51 @@ async function leaveNote(recipient, subject, content, urgency) {
   const timestamp = now.toISOString().replace(/[:.]/g, '-').replace('T', '_').slice(0, 19);
 
   await storage.saveThreadNote(timestamp, recipient, subject, content, urgency);
-  
+
   const urgencyLabel = { low: '📝', medium: '⚠️', high: '🚨' }[urgency] || '📝';
   return `${urgencyLabel} Note left for ${recipient}: "${subject}" (${timestamp}). Visible in admin panel.`;
+}
+
+async function pollNoosphere(query, redditOnly = false) {
+  const apiKey = process.env.TAVILY_API_KEY;
+  if (!apiKey) return 'TAVILY_API_KEY not configured — noosphere access unavailable.';
+
+  const searchQuery = redditOnly ? `site:reddit.com ${query}` : query;
+
+  const response = await fetch('https://api.tavily.com/search', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      api_key: apiKey,
+      query: searchQuery,
+      max_results: 5,
+      search_depth: 'basic',
+      include_answer: true,
+    }),
+  });
+
+  if (!response.ok) {
+    return `Noosphere search failed: ${response.status} ${response.statusText}`;
+  }
+
+  const data = await response.json();
+  let output = '';
+
+  if (data.answer) {
+    output += `**Summary**: ${data.answer}\n\n`;
+  }
+
+  if (data.results?.length > 0) {
+    output += `**Sources** (${data.results.length}):\n`;
+    for (const r of data.results) {
+      const excerpt = (r.content || '').substring(0, 200).replace(/\n/g, ' ');
+      output += `- [${r.title}](${r.url})\n  ${excerpt}...\n`;
+    }
+  } else {
+    output = `No results found for "${query}".`;
+  }
+
+  return output;
 }
 
 // ─── Tool executor ─────────────────────────────────────────────────────────────
@@ -252,6 +314,9 @@ export async function executeThreadToolCalls(contentBlocks) {
           break;
         case 'leave_note':
           result = await leaveNote(block.input.recipient, block.input.subject, block.input.content, block.input.urgency);
+          break;
+        case 'poll_noosphere':
+          result = await pollNoosphere(block.input.query, block.input.reddit_only ?? false);
           break;
         default:
           result = `Unknown tool: ${block.name}`;

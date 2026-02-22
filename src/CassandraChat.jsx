@@ -274,6 +274,7 @@ function CassandraChat({ onClose, currentFragmentId }) {
       search_book: 'searching the manuscript',
       read_fragment: 'opening a fragment',
       write_memory: 'writing a memory',
+      poll_noosphere: 'polling the noosphere',
     };
     return tools.map(t => labels[t] || t).join(', ');
   };
