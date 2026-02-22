@@ -185,6 +185,19 @@ export async function markThreadNoteRead(noteId) {
   await getDb().collection('thread_notes').doc(noteId).update({ read: true });
 }
 
+// ─── Analytics ────────────────────────────────────────────────────────────────
+
+export async function logAnalyticsEvent(id, eventData) {
+  await getDb().collection('analytics_events').doc(id).set(eventData);
+}
+
+export async function queryAnalyticsEvents(date, type = null) {
+  let query = getDb().collection('analytics_events').where('date', '==', date);
+  if (type) query = query.where('type', '==', type);
+  const snap = await query.get();
+  return snap.docs.map(d => d.data());
+}
+
 // ─── Reflections ──────────────────────────────────────────────────────────────
 
 export async function saveReflection(timestamp, content, date) {
@@ -208,6 +221,8 @@ export async function listReflections() {
 }
 
 export const firestoreProvider = {
+  logAnalyticsEvent,
+  queryAnalyticsEvents,
   getGlobalState,
   setGlobalState,
   getSummaries,

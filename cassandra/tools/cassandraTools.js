@@ -15,6 +15,7 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { storage } from '../storage/index.js';
+import { logEvent } from '../analytics/analyticsLogger.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const MANUSCRIPT_PATH = path.join(__dirname, '../../misc-resources/manuscript-text.txt');
@@ -430,6 +431,7 @@ export async function executeToolCalls(contentBlocks, toolContext = {}) {
 
   const results = await Promise.all(toolUseBlocks.map(async (block) => {
     let result;
+    const toolStart = Date.now();
     try {
       console.log(`[tool] Cassandra calls ${block.name}(${JSON.stringify(block.input)})`);
       switch (block.name) {
@@ -462,6 +464,7 @@ export async function executeToolCalls(contentBlocks, toolContext = {}) {
       result = `Error executing tool: ${err.message}`;
     }
 
+    await logEvent('tool_called', { tool: block.name, durationMs: Date.now() - toolStart, success: !String(result ?? '').startsWith('Error') });
     return {
       type: 'tool_result',
       tool_use_id: block.id,

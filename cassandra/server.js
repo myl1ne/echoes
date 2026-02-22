@@ -46,6 +46,7 @@ import {
 import { storage } from './storage/index.js';
 import { listConversationIds, getSummaries } from './storage/firestoreProvider.js';
 import { runHeartbeat } from '../thread/heartbeat.js';
+import { logEvent } from './analytics/analyticsLogger.js';
 
 // Load environment variables
 dotenv.config();
@@ -78,10 +79,84 @@ const llmLimiter = rateLimit({
   message: { error: 'Too many requests. The cabin needs a moment of quiet.' }
 });
 
+// Rate limiting on analytics endpoint — generous, but protected
+const analyticsLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 120,
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
 // Serve frontend in production (Cloud Run)
 if (process.env.NODE_ENV === 'production') {
   const distDir = path.join(__dirname, '..', 'dist');
   app.use(express.static(distDir));
+}
+
+/**
+ * Aggregate raw analytics events into a dashboard summary object.
+ */
+function aggregateEvents(events) {
+  const visitorIds = new Set(events.filter(e => e.visitorId).map(e => e.visitorId));
+  const typed = (type) => events.filter(e => e.type === type);
+
+  const responseEvents = typed('response_complete');
+  const durations = responseEvents.map(e => e.durationMs).filter(Boolean).sort((a, b) => a - b);
+  const avgResponseMs = durations.length ? Math.round(durations.reduce((s, x) => s + x, 0) / durations.length) : 0;
+  const p95ResponseMs = durations.length ? durations[Math.floor(durations.length * 0.95)] : 0;
+
+  const chatClosed = typed('chat_closed');
+  const chatDurations = chatClosed.map(e => e.durationMs).filter(Boolean);
+  const avgChatDurationMs = chatDurations.length ? Math.round(chatDurations.reduce((s, x) => s + x, 0) / chatDurations.length) : 0;
+
+  const fragMap = {};
+  for (const e of typed('fragment_viewed')) {
+    if (!e.fragmentId) continue;
+    if (!fragMap[e.fragmentId]) fragMap[e.fragmentId] = { views: 0, totalMs: 0 };
+    fragMap[e.fragmentId].views++;
+    if (e.durationMs) fragMap[e.fragmentId].totalMs += e.durationMs;
+  }
+  const topFragments = Object.entries(fragMap)
+    .map(([fragmentId, d]) => ({ fragmentId, views: d.views, avgDurationMs: d.views ? Math.round(d.totalMs / d.views) : 0 }))
+    .sort((a, b) => b.views - a.views)
+    .slice(0, 10);
+
+  const toolMap = {};
+  for (const e of typed('tool_called')) {
+    if (!e.tool) continue;
+    if (!toolMap[e.tool]) toolMap[e.tool] = { count: 0, totalMs: 0 };
+    toolMap[e.tool].count++;
+    if (e.durationMs) toolMap[e.tool].totalMs += e.durationMs;
+  }
+  const toolCalls = {};
+  for (const [tool, d] of Object.entries(toolMap)) {
+    toolCalls[tool] = { count: d.count, avgDurationMs: d.count ? Math.round(d.totalMs / d.count) : 0 };
+  }
+
+  const navMethods = { next: 0, prev: 0, random: 0, direct: 0 };
+  for (const e of typed('navigation')) {
+    if (e.method && Object.hasOwn(navMethods, e.method)) navMethods[e.method]++;
+  }
+
+  return {
+    uniqueVisitors: visitorIds.size,
+    newVisitors: typed('visitor_new').length,
+    returningVisitors: typed('visitor_return').length,
+    messagesReceived: typed('message_received').length,
+    episodesStarted: typed('episode_started').length,
+    namesSubmitted: typed('name_submitted').length,
+    chatOpened: typed('chat_opened').length,
+    chatClosed: chatClosed.length,
+    avgChatDurationMs,
+    fragmentsViewed: typed('fragment_viewed').length,
+    topFragments,
+    toolCalls,
+    avgResponseMs,
+    p95ResponseMs,
+    heartbeats: typed('heartbeat_complete').length,
+    audioPlayed: typed('audio_played').length,
+    navigationMethods: navMethods,
+  };
 }
 
 /**
@@ -157,6 +232,15 @@ app.get('/api/cassandra/conversation', async (req, res) => {
   if (!visitorId) return;
 
   try {
+    const existingProfile = await storage.getVisitor(visitorId);
+    const today = new Date().toISOString().split('T')[0];
+    if (!existingProfile) {
+      logEvent('visitor_new', { visitorId });
+    } else if (existingProfile.lastSeen && !existingProfile.lastSeen.startsWith(today)) {
+      const daysSinceLastSeen = Math.floor((Date.now() - new Date(existingProfile.lastSeen)) / 86400000);
+      logEvent('visitor_return', { visitorId, daysSinceLastSeen });
+    }
+
     await updateVisitorLastSeen(visitorId);
     const conversation = await getCurrentConversation(visitorId);
     res.json(conversation);
@@ -228,6 +312,8 @@ app.post('/api/cassandra/message/stream', llmLimiter, async (req, res) => {
 
   const { messages, conversationId, currentFragmentId, visitorId } = req.body;
 
+  logEvent('message_received', { visitorId, conversationId });
+
   res.setHeader('Content-Type', 'text/event-stream');
   res.setHeader('Cache-Control', 'no-cache');
   res.setHeader('Connection', 'keep-alive');
@@ -287,6 +373,7 @@ app.post('/api/cassandra/new-episode', async (req, res) => {
 
     const conversation = await createNewConversation(visitorId);
     console.log(`✨ Created new episode: ${conversation.id}`);
+    logEvent('episode_started', { visitorId, conversationId: conversation.id });
     res.json(conversation);
   } catch (error) {
     console.error('Error creating new conversation:', error);
@@ -304,6 +391,7 @@ app.post('/api/cassandra/visitor/name', async (req, res) => {
       return res.status(400).json({ error: 'visitorId and name required' });
     }
     const profile = await setVisitorName(visitorId, name);
+    logEvent('name_submitted', { visitorId });
     res.json({ success: true, profile });
   } catch (error) {
     console.error('Error setting visitor name:', error);
@@ -382,6 +470,7 @@ app.post('/api/cassandra/admin/start-day', requireAdminToken, async (req, res) =
     const recentSummaries = await getRecentSummaries(3);
     const newState = await generateStartOfDaySummary(recentSummaries);
     await updateStateForNewDay(newState);
+    logEvent('admin_action', { action: 'start_day' });
     res.json({ success: true, state: newState });
   } catch (error) {
     console.error('Error generating start-of-day summary:', error);
@@ -419,7 +508,7 @@ app.post('/api/cassandra/admin/end-day', requireAdminToken, async (req, res) => 
     allMessages.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
     const summary = await generateEndOfDaySummary(allMessages);
     await saveDaySummary(today, summary);
-
+    logEvent('admin_action', { action: 'end_day' });
     res.json({ success: true, summary });
   } catch (error) {
     console.error('Error generating end-of-day summary:', error);
@@ -472,6 +561,7 @@ app.post('/api/cassandra/admin/reflect', requireAdminToken, async (req, res) => 
     await storage.saveReflection(timestamp, reflection, today);
 
     console.log(`\n✨ Cassandra's reflection saved: ${timestamp}`);
+    logEvent('admin_action', { action: 'reflect' });
     res.json({ success: true, filename: `${timestamp}.md`, reflection });
   } catch (error) {
     console.error('Error generating reflection:', error);
@@ -631,6 +721,36 @@ app.patch('/api/thread/notes/:noteId', requireAdminToken, async (req, res) => {
   } catch (error) {
     console.error('[thread] Error marking note as read:', error);
     res.status(500).json({ error: 'Failed to mark note as read' });
+  }
+});
+
+// ─── Analytics endpoints ───────────────────────────────────────────────────────
+
+const ALLOWED_CLIENT_EVENTS = ['fragment_viewed', 'chat_opened', 'chat_closed', 'audio_played', 'navigation'];
+
+/**
+ * Receive client-side analytics events (public, rate-limited, allowlisted)
+ */
+app.post('/api/analytics/event', analyticsLimiter, async (req, res) => {
+  const { type, visitorId, ...props } = req.body || {};
+  if (!type || !ALLOWED_CLIENT_EVENTS.includes(type)) {
+    return res.status(400).json({ error: 'unknown event type' });
+  }
+  await logEvent(type, { visitorId: visitorId || null, ...props });
+  res.json({ ok: true });
+});
+
+/**
+ * Get analytics summary for a date (admin endpoint)
+ */
+app.get('/api/cassandra/admin/analytics', requireAdminToken, async (req, res) => {
+  try {
+    const date = req.query.date || new Date().toISOString().split('T')[0];
+    const events = await storage.queryAnalyticsEvents(date);
+    res.json({ date, summary: aggregateEvents(events), eventCount: events.length });
+  } catch (error) {
+    console.error('Error loading analytics:', error);
+    res.status(500).json({ error: 'Failed to load analytics' });
   }
 });
 

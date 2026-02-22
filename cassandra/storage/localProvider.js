@@ -255,6 +255,24 @@ export async function markThreadNoteRead(noteId) {
   }
 }
 
+// ─── Analytics ────────────────────────────────────────────────────────────────
+
+const ANALYTICS_DIR = path.join(STATE_DIR, 'analytics-events');
+
+export async function logAnalyticsEvent(id, eventData) {
+  ensureDir(ANALYTICS_DIR);
+  const file = path.join(ANALYTICS_DIR, `${eventData.date}.jsonl`);
+  await fs.promises.appendFile(file, JSON.stringify({ id, ...eventData }) + '\n');
+}
+
+export async function queryAnalyticsEvents(date, type = null) {
+  const file = path.join(ANALYTICS_DIR, `${date}.jsonl`);
+  if (!fs.existsSync(file)) return [];
+  const lines = fs.readFileSync(file, 'utf-8').trim().split('\n').filter(Boolean);
+  const events = lines.map(l => { try { return JSON.parse(l); } catch { return null; } }).filter(Boolean);
+  return type ? events.filter(e => e.type === type) : events;
+}
+
 // ─── Reflections ──────────────────────────────────────────────────────────────
 
 export async function saveReflection(timestamp, content, date) {
@@ -278,6 +296,8 @@ export async function listReflections() {
 }
 
 export const localProvider = {
+  logAnalyticsEvent,
+  queryAnalyticsEvents,
   getGlobalState,
   setGlobalState,
   getSummaries,

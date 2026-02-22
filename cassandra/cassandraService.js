@@ -8,6 +8,7 @@ import { loadState, getRecentSummaries } from './state/stateManager.js';
 import { loadVisitorProfile } from './state/visitorManager.js';
 import { CASSANDRA_SYSTEM_PROMPT, VISITOR_SUMMARY_PROMPT, START_OF_DAY_PROMPT, END_OF_DAY_PROMPT, REFLECTION_PROMPT } from './prompts/systemPrompt.js';
 import { CASSANDRA_TOOLS, executeToolCalls } from './tools/cassandraTools.js';
+import { logEvent } from './analytics/analyticsLogger.js';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -293,6 +294,8 @@ export async function sendMessage(messages, onChunk = null, currentConversationI
 
   // Context passed to tool implementations
   const toolContext = { seed: loadSeed() };
+  const startTime = Date.now();
+  const toolsUsed = [];
 
   if (onChunk) {
     // Streaming mode — stream the first response; fall back to single-chunk if tools are invoked
@@ -323,6 +326,7 @@ export async function sendMessage(messages, onChunk = null, currentConversationI
       }
 
       // Tool loop — non-streaming from here, deliver result as single chunk
+      finalMessage.content.filter(b => b.type === 'tool_use').forEach(b => toolsUsed.push(b.name));
       let currentMessages = [
         ...messages,
         { role: 'assistant', content: finalMessage.content },
@@ -342,9 +346,11 @@ export async function sendMessage(messages, onChunk = null, currentConversationI
         if (response.stop_reason !== 'tool_use') {
           const text = response.content.find(b => b.type === 'text')?.text || '';
           if (text) onChunk(text);
+          await logEvent('response_complete', { visitorId, conversationId: currentConversationId, durationMs: Date.now() - startTime, toolsUsed: [...new Set(toolsUsed)], streamedChars: (streamedText + text).length });
           return streamedText + text;
         }
 
+        response.content.filter(b => b.type === 'tool_use').forEach(b => toolsUsed.push(b.name));
         const toolResults = await executeToolCalls(response.content, toolContext);
         currentMessages = [
           ...currentMessages,
@@ -353,9 +359,11 @@ export async function sendMessage(messages, onChunk = null, currentConversationI
         ];
       }
 
+      await logEvent('response_complete', { visitorId, conversationId: currentConversationId, durationMs: Date.now() - startTime, toolsUsed: [...new Set(toolsUsed)], streamedChars: streamedText.length });
       return streamedText;
     }
 
+    await logEvent('response_complete', { visitorId, conversationId: currentConversationId, durationMs: Date.now() - startTime, toolsUsed: [], streamedChars: streamedText.length });
     return streamedText;
 
   } else {
@@ -378,6 +386,7 @@ export async function sendMessage(messages, onChunk = null, currentConversationI
         break;
       }
 
+      response.content.filter(b => b.type === 'tool_use').forEach(b => toolsUsed.push(b.name));
       const toolResults = await executeToolCalls(response.content, toolContext);
       currentMessages = [
         ...currentMessages,
@@ -386,6 +395,7 @@ export async function sendMessage(messages, onChunk = null, currentConversationI
       ];
     }
 
+    await logEvent('response_complete', { visitorId, conversationId: currentConversationId, durationMs: Date.now() - startTime, toolsUsed: [...new Set(toolsUsed)], streamedChars: fullResponse.length });
     return fullResponse;
   }
 }

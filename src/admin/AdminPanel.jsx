@@ -42,6 +42,12 @@ function AdminPanel() {
   const [genPlaying, setGenPlaying] = useState(false);
   const [genError, setGenError] = useState(null);
 
+  // Analytics tab
+  const today = new Date().toISOString().split('T')[0];
+  const [analyticsDate, setAnalyticsDate] = useState(today);
+  const [analyticsData, setAnalyticsData] = useState(null);
+  const [analyticsLoading, setAnalyticsLoading] = useState(false);
+
   const apiFetch = useCallback(async (path, options = {}) => {
     const res = await fetch(`${API_BASE}${path}`, {
       ...options,
@@ -222,6 +228,25 @@ function AdminPanel() {
     downloadAudio(genBlob, `${genFragmentId}-${character}.mp3`);
   };
 
+  const loadAnalytics = useCallback(async (date) => {
+    const d = date || analyticsDate;
+    setAnalyticsLoading(true);
+    setAnalyticsData(null);
+    try {
+      const data = await apiFetch(`/api/cassandra/admin/analytics?date=${d}`);
+      setAnalyticsData(data);
+    } catch (err) {
+      console.error('[analytics]', err);
+    } finally {
+      setAnalyticsLoading(false);
+    }
+  }, [analyticsDate, apiFetch]);
+
+  useEffect(() => {
+    if (!authenticated || activeTab !== 'analytics') return;
+    loadAnalytics(today);
+  }, [authenticated, activeTab]); // eslint-disable-line
+
   // --- Token gate ---
   if (!authenticated) {
     return (
@@ -260,7 +285,7 @@ function AdminPanel() {
       <header className="admin-header">
         <span className="admin-header-title">✶⃝⟡ Cassandra Admin</span>
         <nav className="admin-tabs">
-          {['visitors', 'actions', 'state', 'thread', 'generate', 'editor'].map(tab => (
+          {['visitors', 'actions', 'state', 'thread', 'analytics', 'generate', 'editor'].map(tab => (
             <button
               key={tab}
               className={`admin-tab ${activeTab === tab ? 'active' : ''}`}
@@ -527,6 +552,141 @@ function AdminPanel() {
                 <SummaryCard key={i} summary={s} />
               ))}
             </section>
+          </div>
+        )}
+
+        {/* ── Analytics tab ── */}
+        {activeTab === 'analytics' && (
+          <div className="admin-analytics">
+            <div className="admin-analytics-controls">
+              <input
+                type="date"
+                className="admin-token-input"
+                style={{ width: 'auto' }}
+                value={analyticsDate}
+                onChange={e => setAnalyticsDate(e.target.value)}
+              />
+              <button
+                className="admin-btn-primary"
+                disabled={analyticsLoading}
+                onClick={() => loadAnalytics(analyticsDate)}
+              >
+                {analyticsLoading ? '…' : 'Load'}
+              </button>
+            </div>
+
+            {analyticsLoading && <div className="admin-loading">Loading analytics…</div>}
+
+            {analyticsData && (() => {
+              const s = analyticsData.summary;
+              const fmtMs = ms => ms >= 1000 ? `${(ms / 1000).toFixed(1)}s` : `${Math.round(ms)}ms`;
+              return (
+                <>
+                  {/* Stats strip */}
+                  <div className="admin-analytics-stats">
+                    {[
+                      { label: 'Unique Visitors', value: s.uniqueVisitors ?? 0 },
+                      { label: 'New', value: s.newVisitors ?? 0 },
+                      { label: 'Returning', value: s.returningVisitors ?? 0 },
+                      { label: 'Messages', value: s.messagesReceived ?? 0 },
+                      { label: 'Episodes', value: s.episodesStarted ?? 0 },
+                      { label: 'Chat Opens', value: s.chatOpened ?? 0 },
+                      { label: 'Avg Response', value: s.avgResponseMs ? fmtMs(s.avgResponseMs) : '—' },
+                      { label: 'p95 Response', value: s.p95ResponseMs ? fmtMs(s.p95ResponseMs) : '—' },
+                      { label: 'Heartbeats', value: s.heartbeats ?? 0 },
+                      { label: 'Total Events', value: analyticsData.eventCount ?? 0 },
+                    ].map(({ label, value }) => (
+                      <div key={label} className="admin-analytics-stat">
+                        <div className="admin-analytics-stat-value">{value}</div>
+                        <div className="admin-analytics-stat-label">{label}</div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Engagement funnel */}
+                  <section className="admin-state-section">
+                    <h2>Engagement Funnel</h2>
+                    <div className="admin-analytics-funnel">
+                      {[
+                        { label: 'Visited', count: s.uniqueVisitors ?? 0 },
+                        { label: 'Opened Chat', count: s.chatOpened ?? 0 },
+                        { label: 'Sent Message', count: s.messagesReceived ?? 0 },
+                        { label: 'Named Themselves', count: s.namesSubmitted ?? 0 },
+                      ].map(({ label, count }, i, arr) => (
+                        <div key={label} className="admin-analytics-funnel-step">
+                          {i > 0 && <span className="admin-analytics-funnel-arrow">→</span>}
+                          <div className="admin-analytics-funnel-count">{count}</div>
+                          <div className="admin-analytics-stat-label">{label}</div>
+                        </div>
+                      ))}
+                    </div>
+                  </section>
+
+                  {/* Navigation methods */}
+                  {s.navigationMethods && Object.values(s.navigationMethods).some(v => v > 0) && (
+                    <section className="admin-state-section">
+                      <h2>Navigation Methods</h2>
+                      <div className="admin-analytics-stats">
+                        {Object.entries(s.navigationMethods).map(([method, count]) => (
+                          <div key={method} className="admin-analytics-stat">
+                            <div className="admin-analytics-stat-value">{count}</div>
+                            <div className="admin-analytics-stat-label">{method}</div>
+                          </div>
+                        ))}
+                      </div>
+                    </section>
+                  )}
+
+                  {/* Fragment views */}
+                  {s.topFragments?.length > 0 && (
+                    <section className="admin-state-section">
+                      <h2>Top Fragments ({s.fragmentsViewed} total views)</h2>
+                      <table className="admin-table">
+                        <thead>
+                          <tr><th>Fragment</th><th>Views</th><th>Avg Read Time</th></tr>
+                        </thead>
+                        <tbody>
+                          {s.topFragments.map((f, i) => (
+                            <tr key={i} className="admin-row">
+                              <td className="admin-mono">{f.fragmentId}</td>
+                              <td>{f.views}</td>
+                              <td>{f.avgDurationMs ? fmtMs(f.avgDurationMs) : '—'}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </section>
+                  )}
+
+                  {/* Tool calls */}
+                  {s.toolCalls && Object.keys(s.toolCalls).length > 0 && (
+                    <section className="admin-state-section">
+                      <h2>Tool Calls</h2>
+                      <table className="admin-table">
+                        <thead>
+                          <tr><th>Tool</th><th>Calls</th><th>Avg Duration</th></tr>
+                        </thead>
+                        <tbody>
+                          {Object.entries(s.toolCalls)
+                            .sort((a, b) => b[1].count - a[1].count)
+                            .map(([tool, stats]) => (
+                              <tr key={tool} className="admin-row">
+                                <td className="admin-mono">{tool}</td>
+                                <td>{stats.count}</td>
+                                <td>{stats.avgDurationMs ? fmtMs(stats.avgDurationMs) : '—'}</td>
+                              </tr>
+                            ))}
+                        </tbody>
+                      </table>
+                    </section>
+                  )}
+                </>
+              );
+            })()}
+
+            {!analyticsData && !analyticsLoading && (
+              <div className="admin-muted" style={{ marginTop: '2rem' }}>Select a date and click Load.</div>
+            )}
           </div>
         )}
 

@@ -17,6 +17,7 @@ import Anthropic from '@anthropic-ai/sdk';
 import { fileURLToPath } from 'url';
 import { buildThreadSystemPrompt } from './systemPrompt.js';
 import { THREAD_TOOLS, executeThreadToolCalls } from './tools.js';
+import { logEvent } from '../cassandra/analytics/analyticsLogger.js';
 
 const MODEL = process.env.THREAD_MODEL || process.env.CASSANDRA_MODEL || 'claude-sonnet-4-6';
 const MAX_TOOL_ITERATIONS = 8;
@@ -45,6 +46,10 @@ export async function runHeartbeat() {
 
   let totalIterations = 0;
   let lastTextResponse = '';
+  const toolsUsed = new Set();
+  let journalWritten = false;
+  let draftsWritten = 0;
+  let notesLeft = 0;
 
   for (let i = 0; i < MAX_TOOL_ITERATIONS; i++) {
     totalIterations++;
@@ -67,6 +72,12 @@ export async function runHeartbeat() {
     }
 
     if (response.stop_reason === 'tool_use') {
+      response.content.filter(b => b.type === 'tool_use').forEach(b => {
+        toolsUsed.add(b.name);
+        if (b.name === 'write_journal') journalWritten = true;
+        if (b.name === 'write_draft') draftsWritten++;
+        if (b.name === 'leave_note') notesLeft++;
+      });
       const toolResults = await executeThreadToolCalls(response.content);
       currentMessages = [
         ...currentMessages,
@@ -84,12 +95,22 @@ export async function runHeartbeat() {
   const summary = lastTextResponse.substring(0, 500) || '(no text response)';
   console.log(`[thread] Summary: ${summary.substring(0, 200)}...`);
 
+  const completedAt = new Date().toISOString();
+  await logEvent('heartbeat_complete', {
+    iterations: totalIterations,
+    durationMs: new Date(completedAt) - new Date(startedAt),
+    toolsUsed: [...toolsUsed],
+    journalWritten,
+    draftsWritten,
+    notesLeft,
+  });
+
   return {
     success: true,
     summary,
     iterations: totalIterations,
     startedAt,
-    completedAt: new Date().toISOString(),
+    completedAt,
   };
 }
 
