@@ -271,12 +271,18 @@ function CassandraChat({ onClose, currentFragmentId }) {
   const getToolStatusText = (tools) => {
     if (!tools?.length) return null;
     const labels = {
-      search_book: 'searching the manuscript',
-      read_fragment: 'opening a fragment',
-      write_memory: 'writing a memory',
-      poll_noosphere: 'polling the noosphere',
+      search_book: { verb: 'searching the manuscript', arg: t => t.input?.query },
+      read_fragment: { verb: 'opening a fragment', arg: t => t.input?.fragment_id },
+      write_memory: { verb: 'writing a memory', arg: t => t.input?.key },
+      poll_noosphere: { verb: 'polling the noosphere', arg: t => t.input?.query },
     };
-    return tools.map(t => labels[t] || t).join(', ');
+    return tools.map(t => {
+      const name = typeof t === 'string' ? t : t.name;
+      const def = labels[name];
+      if (!def) return name;
+      const arg = typeof t === 'object' ? def.arg(t) : null;
+      return arg ? `${def.verb}: "${arg}"` : def.verb;
+    }).join(', ');
   };
 
   const formatTime = (timestamp) => {

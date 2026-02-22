@@ -314,12 +314,12 @@ export async function sendMessage(messages, onChunk = null, currentConversationI
     const finalMessage = await stream.finalMessage();
 
     if (finalMessage.stop_reason === 'tool_use') {
-      // Notify frontend that tools are being used
+      // Notify frontend that tools are being used (include inputs for display)
       if (onStatus) {
-        const toolNames = finalMessage.content
+        const toolCalls = finalMessage.content
           .filter(b => b.type === 'tool_use')
-          .map(b => b.name);
-        onStatus({ tools: toolNames });
+          .map(b => ({ name: b.name, input: b.input }));
+        onStatus({ tools: toolCalls });
       }
 
       // Tool loop — non-streaming from here, deliver result as single chunk
