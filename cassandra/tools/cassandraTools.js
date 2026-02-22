@@ -8,6 +8,7 @@
  *   poll_noosphere     — search the web / Reddit for current human thinking
  *   post_to_reddit     — post to a subreddit as Cassandra
  *   read_reddit_thread — read a Reddit post and its comments
+ *   fetch_url          — fetch and read the content of any URL
  */
 
 import fs from 'fs';
@@ -119,6 +120,20 @@ export const CASSANDRA_TOOLS = [
         },
       },
       required: ['post_id'],
+    },
+  },
+  {
+    name: 'fetch_url',
+    description: 'Fetch and read the content of any URL. Use to read articles, papers, or pages linked in conversation. Returns plain text (HTML stripped). Limit: first 3000 characters.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        url: {
+          type: 'string',
+          description: 'The URL to fetch',
+        },
+      },
+      required: ['url'],
     },
   },
 ];
@@ -368,6 +383,37 @@ async function readRedditThread(postId) {
   return output;
 }
 
+async function fetchUrl(url) {
+  try {
+    const response = await fetch(url, {
+      headers: { 'User-Agent': 'Echoes:CassandraAI:1.0' },
+      signal: AbortSignal.timeout(10000),
+    });
+
+    if (!response.ok) {
+      return `Failed to fetch ${url}: ${response.status} ${response.statusText}`;
+    }
+
+    const contentType = response.headers.get('content-type') || '';
+    const text = await response.text();
+
+    let content = text;
+    if (contentType.includes('text/html')) {
+      content = text
+        .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
+        .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
+        .replace(/<[^>]+>/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+    }
+
+    const truncated = content.substring(0, 3000);
+    return truncated + (content.length > 3000 ? `\n\n[truncated — ${content.length} chars total]` : '');
+  } catch (err) {
+    return `Error fetching ${url}: ${err.message}`;
+  }
+}
+
 // ─── Tool executor ─────────────────────────────────────────────────────────────
 
 /**
@@ -404,6 +450,9 @@ export async function executeToolCalls(contentBlocks, toolContext = {}) {
           break;
         case 'read_reddit_thread':
           result = await readRedditThread(block.input.post_id);
+          break;
+        case 'fetch_url':
+          result = await fetchUrl(block.input.url);
           break;
         default:
           result = `Unknown tool: ${block.name}`;

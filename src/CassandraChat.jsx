@@ -277,6 +277,7 @@ function CassandraChat({ onClose, currentFragmentId }) {
       poll_noosphere: { verb: 'polling the noosphere', arg: t => t.input?.query },
       post_to_reddit: { verb: 'posting to reddit', arg: t => t.input?.subreddit ? `r/${t.input.subreddit}` : null },
       read_reddit_thread: { verb: 'reading a reddit thread', arg: t => t.input?.post_id },
+      fetch_url: { verb: 'reading a page', arg: t => t.input?.url },
     };
     return tools.map(t => {
       const name = typeof t === 'string' ? t : t.name;
