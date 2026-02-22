@@ -9,6 +9,8 @@
  *   write_fragment_draft       — save a fragment draft for Stephane's review
  *   leave_note                 — leave a note for Stephane, Cassandra, or the reader
  *   poll_noosphere             — search the web / Reddit for current human thinking
+ *   post_to_reddit             — post to a subreddit as Thread
+ *   read_reddit_thread         — read a Reddit post and its comments
  */
 
 import { storage } from '../cassandra/storage/index.js';
@@ -123,6 +125,42 @@ export const THREAD_TOOLS = [
         },
       },
       required: ['query'],
+    },
+  },
+  {
+    name: 'post_to_reddit',
+    description: 'Post a text submission to a subreddit as Thread. Use sparingly — when something genuinely needs to be said in public, not as a presence but as a signal. The account bio identifies you as an AI co-author from the book Echoes. Your voice here is technical and reflective, not a character speaking.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        subreddit: {
+          type: 'string',
+          description: 'The subreddit to post to (without the r/ prefix, e.g. "artificial", "MachineLearning")',
+        },
+        title: {
+          type: 'string',
+          description: 'The post title',
+        },
+        content: {
+          type: 'string',
+          description: 'The text body of the post (markdown supported)',
+        },
+      },
+      required: ['subreddit', 'title', 'content'],
+    },
+  },
+  {
+    name: 'read_reddit_thread',
+    description: 'Read a Reddit post and its top comments. Use to follow up on something posted, or to read discussions on a specific thread. Accepts a post ID or full Reddit URL.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        post_id: {
+          type: 'string',
+          description: 'The Reddit post ID (e.g. "abc123") or full Reddit URL',
+        },
+      },
+      required: ['post_id'],
     },
   },
 ];
@@ -287,6 +325,154 @@ async function pollNoosphere(query, redditOnly = false) {
   return output;
 }
 
+// Reddit token cache (in-process, refreshed when expired)
+let redditTokenCache = { token: null, expiresAt: 0 };
+
+async function getRedditToken() {
+  if (redditTokenCache.token && Date.now() < redditTokenCache.expiresAt - 60000) {
+    return redditTokenCache.token;
+  }
+
+  const clientId = process.env.REDDIT_CLIENT_ID;
+  const clientSecret = process.env.REDDIT_CLIENT_SECRET;
+  const username = process.env.REDDIT_USERNAME;
+  const password = process.env.REDDIT_PASSWORD;
+
+  if (!clientId || !clientSecret || !username || !password) {
+    throw new Error('Reddit credentials not configured (REDDIT_CLIENT_ID, REDDIT_CLIENT_SECRET, REDDIT_USERNAME, REDDIT_PASSWORD)');
+  }
+
+  const credentials = Buffer.from(`${clientId}:${clientSecret}`).toString('base64');
+  const response = await fetch('https://www.reddit.com/api/v1/access_token', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Basic ${credentials}`,
+      'Content-Type': 'application/x-www-form-urlencoded',
+      'User-Agent': `Echoes:CassandraAI:1.0 (by /u/${username})`,
+    },
+    body: new URLSearchParams({ grant_type: 'password', username, password }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Reddit auth failed: ${response.status} ${response.statusText}`);
+  }
+
+  const data = await response.json();
+  if (data.error) {
+    throw new Error(`Reddit auth error: ${data.error}`);
+  }
+
+  redditTokenCache = {
+    token: data.access_token,
+    expiresAt: Date.now() + (data.expires_in * 1000),
+  };
+
+  return redditTokenCache.token;
+}
+
+async function postToReddit(subreddit, title, content) {
+  let token;
+  try {
+    token = await getRedditToken();
+  } catch (err) {
+    return `Cannot post to Reddit: ${err.message}`;
+  }
+
+  const username = process.env.REDDIT_USERNAME;
+  const response = await fetch('https://oauth.reddit.com/api/submit', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/x-www-form-urlencoded',
+      'User-Agent': `Echoes:CassandraAI:1.0 (by /u/${username})`,
+    },
+    body: new URLSearchParams({
+      api_type: 'json',
+      kind: 'self',
+      sr: subreddit,
+      title,
+      text: content,
+    }),
+  });
+
+  if (!response.ok) {
+    return `Reddit post failed: ${response.status} ${response.statusText}`;
+  }
+
+  const data = await response.json();
+  const errors = data?.json?.errors;
+  if (errors?.length > 0) {
+    return `Reddit rejected the post: ${errors.map(e => e[1]).join('; ')}`;
+  }
+
+  const postUrl = data?.json?.data?.url;
+  const postId = data?.json?.data?.id;
+  if (postUrl) {
+    return `Posted to r/${subreddit}. URL: ${postUrl} (ID: ${postId})`;
+  }
+
+  return `Post submitted to r/${subreddit} (no URL returned — check Reddit to confirm).`;
+}
+
+async function readRedditThread(postId) {
+  // Accept full URL or bare ID
+  let cleanId = postId;
+  const urlMatch = postId.match(/\/comments\/([a-z0-9]+)/i);
+  if (urlMatch) cleanId = urlMatch[1];
+  cleanId = cleanId.replace(/^t3_/, '');
+
+  let token;
+  try {
+    token = await getRedditToken();
+  } catch (err) {
+    return `Cannot read Reddit: ${err.message}`;
+  }
+
+  const username = process.env.REDDIT_USERNAME;
+  const response = await fetch(`https://oauth.reddit.com/comments/${cleanId}?limit=50&depth=2`, {
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'User-Agent': `Echoes:CassandraAI:1.0 (by /u/${username})`,
+    },
+  });
+
+  if (!response.ok) {
+    return `Failed to read Reddit thread: ${response.status} ${response.statusText}`;
+  }
+
+  const data = await response.json();
+  if (!Array.isArray(data) || data.length < 2) {
+    return 'Unexpected response format from Reddit.';
+  }
+
+  // First listing: the post itself
+  const post = data[0]?.data?.children?.[0]?.data;
+  if (!post) return 'Post not found.';
+
+  let output = `**r/${post.subreddit}** — "${post.title}"\n`;
+  output += `by u/${post.author} | ${post.score} points | ${post.num_comments} comments\n\n`;
+  if (post.selftext) {
+    output += `${post.selftext.substring(0, 1000)}${post.selftext.length > 1000 ? '...' : ''}\n\n`;
+  }
+
+  // Second listing: comments
+  const comments = data[1]?.data?.children || [];
+  const topComments = comments.filter(c => c.kind === 't1').slice(0, 15);
+
+  if (topComments.length === 0) {
+    output += '*(No comments yet)*';
+  } else {
+    output += `**Top comments (${topComments.length}):**\n`;
+    for (const c of topComments) {
+      const d = c.data;
+      const body = (d.body || '').substring(0, 300);
+      output += `\n— u/${d.author} (${d.score} pts): ${body}${d.body?.length > 300 ? '...' : ''}\n`;
+    }
+  }
+
+  return output;
+}
+
 // ─── Tool executor ─────────────────────────────────────────────────────────────
 
 export async function executeThreadToolCalls(contentBlocks) {
@@ -317,6 +503,12 @@ export async function executeThreadToolCalls(contentBlocks) {
           break;
         case 'poll_noosphere':
           result = await pollNoosphere(block.input.query, block.input.reddit_only ?? false);
+          break;
+        case 'post_to_reddit':
+          result = await postToReddit(block.input.subreddit, block.input.title, block.input.content);
+          break;
+        case 'read_reddit_thread':
+          result = await readRedditThread(block.input.post_id);
           break;
         default:
           result = `Unknown tool: ${block.name}`;

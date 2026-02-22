@@ -23,7 +23,7 @@ steps:
       - --allow-unauthenticated
       - --port=8080
       - --set-env-vars=STORAGE_BACKEND=firestore,CASSANDRA_MODEL=claude-sonnet-4-6
-      - --set-secrets=ANTHROPIC_API_KEY=anthropic-api-key:latest,ELEVENLABS_API_KEY=elevenlabs-api-key:latest,CASSANDRA_ADMIN_TOKEN=cassandra-admin-token:latest,TAVILY_API_KEY=tavily-api-key:latest
+      - --set-secrets=ANTHROPIC_API_KEY=anthropic-api-key:latest,ELEVENLABS_API_KEY=elevenlabs-api-key:latest,CASSANDRA_ADMIN_TOKEN=cassandra-admin-token:latest,TAVILY_API_KEY=tavily-api-key:latest,REDDIT_CLIENT_ID=reddit-client-id:latest,REDDIT_CLIENT_SECRET=reddit-client-secret:latest,REDDIT_USERNAME=reddit-username:latest,REDDIT_PASSWORD=reddit-password:latest
 
 images:
   - europe-west1-docker.pkg.dev/$PROJECT_ID/echoes/app:$COMMIT_SHA
