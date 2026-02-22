@@ -7,8 +7,14 @@ cassandra/state/visitors/
 cassandra/state/reflections/
 cassandra/conversations/**/*.json
 cassandra/seed.json
-misc-resources/
-!misc-resources/manuscript-text.txt
+misc-resources/*.docx
+misc-resources/*.pdf
+misc-resources/Pictures/
+misc-resources/copilot-*
+misc-resources/voices.json
+misc-resources/for-thread.md
+misc-resources/goodnight-thread.md
+misc-resources/memory-and-choice.md
 draft/
 .claude/
 .git
