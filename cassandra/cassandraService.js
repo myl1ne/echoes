@@ -236,7 +236,7 @@ export async function getSystemPrompt(visitorProfile = null) {
  * Supports agentic tool use (read_fragment, search_book, write_memory).
  * Streams the first response; if tools are invoked, continues non-streaming then delivers final text.
  */
-export async function sendMessage(messages, onChunk = null, currentConversationId = null, currentFragmentId = null, visitorId = null) {
+export async function sendMessage(messages, onChunk = null, currentConversationId = null, currentFragmentId = null, visitorId = null, onStatus = null) {
   const client = getAnthropicClient();
   const visitorProfile = visitorId ? await loadVisitorProfile(visitorId) : null;
   let systemPrompt = await getSystemPrompt(visitorProfile);
@@ -314,6 +314,14 @@ export async function sendMessage(messages, onChunk = null, currentConversationI
     const finalMessage = await stream.finalMessage();
 
     if (finalMessage.stop_reason === 'tool_use') {
+      // Notify frontend that tools are being used
+      if (onStatus) {
+        const toolNames = finalMessage.content
+          .filter(b => b.type === 'tool_use')
+          .map(b => b.name);
+        onStatus({ tools: toolNames });
+      }
+
       // Tool loop — non-streaming from here, deliver result as single chunk
       let currentMessages = [
         ...messages,

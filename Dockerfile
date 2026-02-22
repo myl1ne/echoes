@@ -18,6 +18,7 @@ COPY package*.json ./
 RUN npm ci --omit=dev
 COPY cassandra/ ./cassandra/
 COPY thread/ ./thread/
+COPY misc-resources/manuscript-text.txt ./misc-resources/manuscript-text.txt
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/cassandra/seed.json ./cassandra/seed.json
 EXPOSE 8080

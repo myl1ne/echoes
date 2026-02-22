@@ -241,7 +241,10 @@ app.post('/api/cassandra/message/stream', llmLimiter, async (req, res) => {
       },
       conversationId,
       currentFragmentId,
-      visitorId
+      visitorId,
+      (status) => {
+        res.write(`data: ${JSON.stringify({ status })}\n\n`);
+      }
     );
 
     res.write(`data: [DONE]\n\n`);

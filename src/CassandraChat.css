@@ -334,6 +334,14 @@
   }
 }
 
+.cassandra-tool-status {
+  padding: 8px 24px;
+  color: rgba(180, 160, 220, 0.7);
+  font-size: 0.85rem;
+  font-style: italic;
+  letter-spacing: 0.03em;
+}
+
 .cassandra-error {
   padding: 12px 24px;
   background: rgba(200, 60, 60, 0.2);

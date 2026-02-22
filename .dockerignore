@@ -8,6 +8,7 @@ cassandra/state/reflections/
 cassandra/conversations/**/*.json
 cassandra/seed.json
 misc-resources/
+!misc-resources/manuscript-text.txt
 draft/
 .claude/
 .git

@@ -34,6 +34,7 @@ function CassandraChat({ onClose, currentFragmentId }) {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [toolStatus, setToolStatus] = useState(null);
   const [error, setError] = useState(null);
   const [conversationId, setConversationId] = useState(null);
   const [visitorId] = useState(() => getVisitorId());
@@ -228,7 +229,11 @@ function CassandraChat({ onClose, currentFragmentId }) {
             if (parsed.error) {
               throw new Error(parsed.error);
             }
+            if (parsed.status) {
+              setToolStatus(parsed.status.tools);
+            }
             if (parsed.chunk) {
+              setToolStatus(null);
               setMessages(prev => prev.map(msg =>
                 msg.id === assistantMsgId
                   ? { ...msg, content: msg.content + parsed.chunk }
@@ -245,6 +250,7 @@ function CassandraChat({ onClose, currentFragmentId }) {
       setError(err.message || 'Failed to reach Cassandra. Is the server running?');
     } finally {
       setIsLoading(false);
+      setToolStatus(null);
     }
   };
 
@@ -260,6 +266,16 @@ function CassandraChat({ onClose, currentFragmentId }) {
       e.preventDefault();
       submitName(nameInput);
     }
+  };
+
+  const getToolStatusText = (tools) => {
+    if (!tools?.length) return null;
+    const labels = {
+      search_book: 'searching the manuscript',
+      read_fragment: 'opening a fragment',
+      write_memory: 'writing a memory',
+    };
+    return tools.map(t => labels[t] || t).join(', ');
   };
 
   const formatTime = (timestamp) => {
@@ -344,6 +360,12 @@ function CassandraChat({ onClose, currentFragmentId }) {
 
           <div ref={messagesEndRef} />
         </div>
+
+        {toolStatus && (
+          <div className="cassandra-tool-status">
+            ✦ {getToolStatusText(toolStatus)}...
+          </div>
+        )}
 
         {error && (
           <div className="cassandra-error">
