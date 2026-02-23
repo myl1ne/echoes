@@ -1,12 +1,12 @@
 /**
- * Cassandra World — webview UI
+ * Cassandra World — webview UI (debug build)
  *
  * Runs inside the Reddit post iframe.
  * Communicates with the Devvit backend (main.tsx) via postMessage.
  *
  * Message flow (Devvit useWebView API, v0.11+):
- *   UI → window.parent.postMessage(msg)       → backend onMessage()
- *   UI ← window.addEventListener('message')   ← backend webViewRef.postMessage(msg)
+ *   UI → window.parent.postMessage(msg, '*')   → backend onMessage()
+ *   UI ← window.addEventListener('message')    ← backend webView.postMessage(msg)
  */
 
 // ─── State ────────────────────────────────────────────────────────────────────
@@ -18,23 +18,44 @@ let state = {
   sending: false,
 };
 
+// ─── Debug ────────────────────────────────────────────────────────────────────
+
+function dbg(text) {
+  const el = document.getElementById('debug-status');
+  if (el) el.textContent = text;
+  console.log('[cabin]', text);
+}
+
 // ─── Message bridge ───────────────────────────────────────────────────────────
 
 /** Send a message to the Devvit backend (main.tsx) */
 function sendToBackend(msg) {
+  dbg('→ ' + msg.type);
   window.parent.postMessage(msg, '*');
 }
 
-/** Receive messages from the Devvit backend */
+/** Receive messages from the Devvit backend (or Devvit runtime) */
 window.addEventListener('message', (ev) => {
-  const msg = ev.data;
+  const raw = ev.data;
+  dbg('← raw: ' + JSON.stringify(raw).substring(0, 80));
+
+  // Handle Devvit wrapper format: { type: 'devvit-message', data: { message: {...} } }
+  let msg = raw;
+  if (raw?.type === 'devvit-message' && raw?.data?.message !== undefined) {
+    msg = raw.data.message;
+  }
+
   if (!msg?.type) return;
+  if (msg.type === 'devvit-internal') return;  // ignore Devvit internal messages
+
+  dbg('← msg: ' + msg.type);
 
   if (msg.type === 'init_ok') {
     state.visitorId = msg.visitorId;
     state.conversationId = msg.conversationId;
     state.messages = msg.messages || [];
     renderMessages(state.messages);
+    dbg('ready — visitor: ' + (state.visitorId || '?'));
   }
 
   if (msg.type === 'response') {
@@ -44,6 +65,7 @@ window.addEventListener('message', (ev) => {
     state.messages.push({ role: 'assistant', content });
     appendMessage('assistant', content);
     enableInput();
+    dbg('got response');
   }
 
   if (msg.type === 'episode_started') {
@@ -53,6 +75,7 @@ window.addEventListener('message', (ev) => {
     state.sending = false;
     hideTyping();
     enableInput();
+    dbg('new episode');
   }
 
   if (msg.type === 'error') {
@@ -60,6 +83,7 @@ window.addEventListener('message', (ev) => {
     hideTyping();
     appendMessage('system', `(Something went quiet in the cabin. Try again.)`);
     enableInput();
+    dbg('error: ' + msg.message);
   }
 });
 
@@ -67,6 +91,7 @@ window.addEventListener('message', (ev) => {
 
 document.addEventListener('DOMContentLoaded', () => {
   attachListeners();
+  dbg('DOMContentLoaded — sending init...');
   sendToBackend({ type: 'init' });
 });
 
@@ -124,7 +149,8 @@ function attachListeners() {
 }
 
 function sendMessage() {
-  if (state.sending || !state.visitorId) return;
+  if (state.sending) { dbg('blocked: sending'); return; }
+  if (!state.visitorId) { dbg('blocked: no visitorId'); return; }
   const input = document.getElementById('input');
   const content = input.value.trim();
   if (!content) return;
