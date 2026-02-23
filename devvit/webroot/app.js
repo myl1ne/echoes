@@ -9,10 +9,10 @@
  *   UI ← window.addEventListener('message')    ← backend webView.postMessage(msg)
  */
 
-// Synchronous load probe — updates debug status immediately if script executes at all
+// Synchronous load probe — appends to debug log immediately if script executes at all
 (function() {
   var el = document.getElementById('debug-status');
-  if (el) el.textContent = 'app.js loaded';
+  if (el) { el.innerHTML += '<div>app.js loaded</div>'; el.scrollTop = el.scrollHeight; }
   console.log('[cabin] app.js loaded');
 })();
 
@@ -29,7 +29,7 @@ let state = {
 
 function dbg(text) {
   const el = document.getElementById('debug-status');
-  if (el) el.textContent = text;
+  if (el) { el.innerHTML += '<div>' + text + '</div>'; el.scrollTop = el.scrollHeight; }
   console.log('[cabin]', text);
 }
 
