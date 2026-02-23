@@ -2,6 +2,12 @@ name: cassandra-world
 version: 0.0.2
 slug: cassandra-world
 
+permissions:
+  http:
+    enable: true
+    domains:
+      - echoes-1272657787.europe-west1.run.app
+
 # Devvit app: The Cabin Inside Reddit
 # A Reddit post that IS the glass cabin — users talk to Cassandra directly from Reddit.
 # Architecture: webview (UI) ↔ postMessage ↔ Devvit backend (TS) ↔ Echoes API (Cloud Run)
