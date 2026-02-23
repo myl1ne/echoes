@@ -55,16 +55,19 @@ const app = express();
 // Cloud Run requires PORT 8080; local dev can use CASSANDRA_PORT or fall back to 3001
 const PORT = process.env.PORT || process.env.CASSANDRA_PORT || 3001;
 
-// CORS — allow only the production origin and local dev
+// CORS — allow production origin, local dev, and Reddit/Devvit domains
 const allowedOrigins = [
   'https://echoes-1272657787.europe-west1.run.app',
   'http://localhost:5173',
   'http://localhost:3001'
 ];
+const allowedOriginPatterns = [/\.reddit\.com$/, /\.devvit\.dev$/];
 app.use(cors({
   origin: (origin, callback) => {
-    // Allow requests with no Origin header (same-origin, curl, etc. are handled by rate limiting)
-    if (!origin || allowedOrigins.includes(origin)) return callback(null, true);
+    // Allow requests with no Origin header (same-origin, curl, Devvit server-to-server)
+    if (!origin) return callback(null, true);
+    if (allowedOrigins.includes(origin)) return callback(null, true);
+    if (allowedOriginPatterns.some(p => p.test(origin))) return callback(null, true);
     callback(new Error('Not allowed by CORS'));
   }
 }));

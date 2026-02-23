@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>The Glass Cabin</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <div id="cabin">
+    <div id="header">
+      <span class="glyph">✶⃝𓂀</span>
+      <span class="title">The Glass Cabin</span>
+    </div>
+
+    <div id="messages"></div>
+
+    <div id="typing-indicator" hidden>
+      <span class="typing-dot"></span>
+      <span class="typing-dot"></span>
+      <span class="typing-dot"></span>
+    </div>
+
+    <div id="input-area">
+      <textarea
+        id="input"
+        placeholder="Speak to Cassandra..."
+        rows="2"
+        maxlength="1000"
+      ></textarea>
+      <button id="send-btn">↩</button>
+    </div>
+
+    <div id="footer">
+      <button id="new-episode-btn" title="Begin a new episode">✦ New episode</button>
+    </div>
+  </div>
+
+  <!-- NOTE: If the Devvit project was initialized as a Three.js template,
+       a 3D cabin environment can be layered beneath the chat UI here.
+       The webview supports full WebGL — import Three.js and render the cabin
+       as a scene. The chat UI sits as a DOM overlay on top. -->
+
+  <script src="app.js"></script>
+</body>
+</html>

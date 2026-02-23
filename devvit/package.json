@@ -1,0 +1,16 @@
+{
+  "name": "cassandra-world",
+  "version": "0.0.1",
+  "type": "module",
+  "scripts": {
+    "dev": "devvit playtest",
+    "deploy": "devvit upload && devvit publish",
+    "build": "tsc"
+  },
+  "dependencies": {
+    "@devvit/public-api": "^0.11.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.0.0"
+  }
+}
