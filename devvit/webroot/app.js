@@ -9,6 +9,13 @@
  *   UI ← window.addEventListener('message')    ← backend webView.postMessage(msg)
  */
 
+// Synchronous load probe — updates debug status immediately if script executes at all
+(function() {
+  var el = document.getElementById('debug-status');
+  if (el) el.textContent = 'app.js loaded';
+  console.log('[cabin] app.js loaded');
+})();
+
 // ─── State ────────────────────────────────────────────────────────────────────
 
 let state = {
