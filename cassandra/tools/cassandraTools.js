@@ -418,8 +418,8 @@ async function fetchUrl(url) {
         .trim();
     }
 
-    const truncated = content.substring(0, 3000);
-    return truncated + (content.length > 3000 ? `\n\n[truncated — ${content.length} chars total]` : '');
+    const truncated = content.substring(0, 10000);
+    return truncated + (content.length > 10000 ? `\n\n[truncated — ${content.length} chars total]` : '');
   } catch (err) {
     return `Error fetching ${url}: ${err.message}`;
   }
