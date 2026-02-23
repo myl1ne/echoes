@@ -22,7 +22,10 @@ import { Devvit, useWebView } from '@devvit/public-api';
 
 const ECHOES_BASE = 'https://echoes-1272657787.europe-west1.run.app';
 
-Devvit.configure({ redditAPI: true, http: true });
+Devvit.configure({
+  redditAPI: true,
+  http: { domains: ['echoes-1272657787.europe-west1.run.app'] },
+});
 
 // Menu action on the subreddit — creates the custom cabin post
 Devvit.addMenuItem({
