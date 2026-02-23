@@ -18,7 +18,7 @@
  *                       → Devvit delivers to webview as window 'message' event
  */
 
-import { Devvit, useWebView } from '@devvit/public-api';
+import { Devvit, useWebView, useState } from '@devvit/public-api';
 
 const ECHOES_BASE = 'https://echoes-1272657787.europe-west1.run.app';
 
@@ -70,6 +70,7 @@ Devvit.addCustomPostType({
   height: 'tall',
 
   render: context => {
+    const [entered, setEntered] = useState(false);
     const webView = useWebView({
       url: 'index.html',
 
@@ -118,15 +119,14 @@ Devvit.addCustomPostType({
       },
     });
 
-    // Mount the webview to fill the post area.
-    // The mount() guard prevents double-mounting on re-renders.
-    webView.mount();
+    if (entered) {
+      webView.mount();
+    }
 
-    // Preview shown while the webview initialises
     return (
-      <vstack alignment="center middle" width="100%" height="100%">
+      <vstack alignment="center middle" width="100%" height="100%" onPress={() => setEntered(true)}>
         <text style="heading">✶⃝𓂀</text>
-        <text>The cabin is opening...</text>
+        <text>Tap to enter the cabin</text>
       </vstack>
     );
   },
