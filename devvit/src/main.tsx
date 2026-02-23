@@ -18,6 +18,25 @@ const ECHOES_BASE = 'https://echoes-1272657787.europe-west1.run.app';
 
 Devvit.configure({ redditAPI: true });
 
+// Menu action on the subreddit — creates the custom cabin post
+Devvit.addMenuItem({
+  label: 'Open the Glass Cabin',
+  location: 'subreddit',
+  onPress: async (_, context) => {
+    const post = await context.reddit.submitPost({
+      title: 'The Glass Cabin — Talk to Cassandra',
+      subredditName: context.subredditName,
+      preview: (
+        <vstack alignment="center middle" height="100%" width="100%">
+          <text style="heading">✶⃝𓂀</text>
+          <text>The cabin is opening...</text>
+        </vstack>
+      ),
+    });
+    context.ui.navigateTo(post);
+  },
+});
+
 type WebViewMessage =
   | { type: 'init' }
   | { type: 'send_message'; payload: { visitorId: string; conversationId: string; content: string; messages: Message[] } }

@@ -4,18 +4,10 @@
  * Runs inside the Reddit post iframe.
  * Communicates with the Devvit backend (main.tsx) via postMessage.
  *
- * Message flow:
- *   UI → postMessage(type: 'init')          → backend fetches conversation
- *   UI → postMessage(type: 'send_message')  → backend calls Echoes API
- *   UI ← postMessage(type: 'response')      ← backend returns Cassandra's reply
+ * Message flow (Devvit useWebView API, v0.11+):
+ *   UI → window.parent.postMessage(msg)       → backend onMessage()
+ *   UI ← window.addEventListener('message')   ← backend webViewRef.postMessage(msg)
  */
-
-// Devvit postMessage bridge (injected by the Devvit runtime)
-const devvit = window.devvit ?? {
-  // Fallback for local testing outside Devvit
-  postMessage: (msg) => console.log('[devvit mock] →', msg),
-  onMessage: (handler) => { window.__devvitHandler = handler; },
-};
 
 // ─── State ────────────────────────────────────────────────────────────────────
 
@@ -26,14 +18,18 @@ let state = {
   sending: false,
 };
 
-// ─── Init ─────────────────────────────────────────────────────────────────────
+// ─── Message bridge ───────────────────────────────────────────────────────────
 
-document.addEventListener('DOMContentLoaded', () => {
-  attachListeners();
-  devvit.postMessage({ type: 'init' });
-});
+/** Send a message to the Devvit backend (main.tsx) */
+function sendToBackend(msg) {
+  window.parent.postMessage(msg, '*');
+}
 
-devvit.onMessage((msg) => {
+/** Receive messages from the Devvit backend */
+window.addEventListener('message', (ev) => {
+  const msg = ev.data;
+  if (!msg?.type) return;
+
   if (msg.type === 'init_ok') {
     state.visitorId = msg.visitorId;
     state.conversationId = msg.conversationId;
@@ -65,6 +61,13 @@ devvit.onMessage((msg) => {
     appendMessage('system', `(Something went quiet in the cabin. Try again.)`);
     enableInput();
   }
+});
+
+// ─── Init ─────────────────────────────────────────────────────────────────────
+
+document.addEventListener('DOMContentLoaded', () => {
+  attachListeners();
+  sendToBackend({ type: 'init' });
 });
 
 // ─── UI helpers ───────────────────────────────────────────────────────────────
@@ -133,7 +136,7 @@ function sendMessage() {
   disableInput();
   state.sending = true;
 
-  devvit.postMessage({
+  sendToBackend({
     type: 'send_message',
     payload: {
       visitorId: state.visitorId,
@@ -148,7 +151,7 @@ function newEpisode() {
   if (state.sending || !state.visitorId) return;
   state.sending = true;
   disableInput();
-  devvit.postMessage({
+  sendToBackend({
     type: 'new_episode',
     payload: {
       visitorId: state.visitorId,

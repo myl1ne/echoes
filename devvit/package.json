@@ -3,12 +3,12 @@
   "version": "0.0.1",
   "type": "module",
   "scripts": {
-    "dev": "devvit playtest",
-    "deploy": "devvit upload && devvit publish",
+    "dev": "npx devvit playtest",
+    "deploy": "npx devvit upload && npx devvit publish",
     "build": "tsc"
   },
   "dependencies": {
-    "@devvit/public-api": "^0.11.0"
+    "@devvit/public-api": "0.12.13"
   },
   "devDependencies": {
     "typescript": "^5.0.0"

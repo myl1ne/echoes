@@ -7,15 +7,17 @@ import { storage } from '../storage/index.js';
 
 // UUID v4 format validation
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+// Devvit (Reddit) visitor ID format: r-{8 hex chars}-devvit
+const DEVVIT_VISITOR_REGEX = /^r-[0-9a-f]{8}-devvit$/;
 
 /**
- * Validate visitor ID format (UUID)
+ * Validate visitor ID format (UUID or Devvit Reddit ID)
  */
 export function validateVisitorId(visitorId) {
   if (!visitorId || typeof visitorId !== 'string') {
     throw new Error('Visitor ID required');
   }
-  if (!UUID_REGEX.test(visitorId)) {
+  if (!UUID_REGEX.test(visitorId) && !DEVVIT_VISITOR_REGEX.test(visitorId)) {
     throw new Error(`Invalid visitor ID format: ${visitorId}`);
   }
   return visitorId;
