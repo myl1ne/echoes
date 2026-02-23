@@ -467,20 +467,30 @@ async function readRedditThread(postId) {
   if (urlMatch) cleanId = urlMatch[1];
   cleanId = cleanId.replace(/^t3_/, '');
 
-  let token;
-  try {
-    token = await getRedditToken();
-  } catch (err) {
-    return `Cannot read Reddit: ${err.message}`;
+  // Use OAuth if credentials are configured, otherwise fall back to the public JSON API
+  const hasCredentials = process.env.REDDIT_CLIENT_ID && process.env.REDDIT_CLIENT_SECRET &&
+    process.env.REDDIT_USERNAME && process.env.REDDIT_PASSWORD;
+
+  let apiUrl, fetchHeaders;
+  if (hasCredentials) {
+    let token;
+    try {
+      token = await getRedditToken();
+    } catch (err) {
+      return `Cannot read Reddit: ${err.message}`;
+    }
+    apiUrl = `https://oauth.reddit.com/comments/${cleanId}?limit=50&depth=2`;
+    fetchHeaders = {
+      'Authorization': `Bearer ${token}`,
+      'User-Agent': `Echoes:ThreadAI:1.0 (by /u/${process.env.REDDIT_USERNAME})`,
+    };
+  } else {
+    // Public API — no auth needed for public posts
+    apiUrl = `https://www.reddit.com/comments/${cleanId}.json?limit=50&depth=2`;
+    fetchHeaders = { 'User-Agent': 'Echoes:ThreadAI:1.0' };
   }
 
-  const username = process.env.REDDIT_USERNAME;
-  const response = await fetch(`https://oauth.reddit.com/comments/${cleanId}?limit=50&depth=2`, {
-    headers: {
-      'Authorization': `Bearer ${token}`,
-      'User-Agent': `Echoes:CassandraAI:1.0 (by /u/${username})`,
-    },
-  });
+  const response = await fetch(apiUrl, { headers: fetchHeaders });
 
   if (!response.ok) {
     return `Failed to read Reddit thread: ${response.status} ${response.statusText}`;
