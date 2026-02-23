@@ -9,6 +9,7 @@ import { loadVisitorProfile } from './state/visitorManager.js';
 import { CASSANDRA_SYSTEM_PROMPT, VISITOR_SUMMARY_PROMPT, START_OF_DAY_PROMPT, END_OF_DAY_PROMPT, REFLECTION_PROMPT } from './prompts/systemPrompt.js';
 import { CASSANDRA_TOOLS, executeToolCalls } from './tools/cassandraTools.js';
 import { logEvent } from './analytics/analyticsLogger.js';
+import { storage } from './storage/index.js';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';

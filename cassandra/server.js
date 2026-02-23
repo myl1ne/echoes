@@ -55,6 +55,9 @@ const app = express();
 // Cloud Run requires PORT 8080; local dev can use CASSANDRA_PORT or fall back to 3001
 const PORT = process.env.PORT || process.env.CASSANDRA_PORT || 3001;
 
+// Trust proxy - required for Cloud Run to correctly identify client IPs for rate limiting
+app.set('trust proxy', true);
+
 // CORS — allow production origin, local dev, and Reddit/Devvit domains
 const allowedOrigins = [
   'https://echoes-1272657787.europe-west1.run.app',
