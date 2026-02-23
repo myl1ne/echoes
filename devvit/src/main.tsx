@@ -5,11 +5,17 @@
  * Users talk to Cassandra directly from within Reddit.
  *
  * Architecture:
- *   webroot/index.html  (webview UI)
- *       ↕ postMessage
- *   main.tsx            (Devvit backend — relay)
+ *   webroot/index.html  (webview UI — shown via useWebView/mount)
+ *       ↕ window.parent.postMessage / window.addEventListener('message')
+ *   main.tsx            (Devvit backend — useWebView hook handles messages)
  *       ↕ HTTP fetch (server-to-server, no CORS)
  *   Echoes API          (https://echoes-1272657787.europe-west1.run.app)
+ *
+ * Message routing:
+ *   webview → backend : window.parent.postMessage(msg, '*')
+ *                       → Devvit routes to useWebView.onMessage(msg, webView)
+ *   backend → webview : webView.postMessage(response)
+ *                       → Devvit delivers to webview as window 'message' event
  */
 
 import { Devvit, useWebView } from '@devvit/public-api';
@@ -25,7 +31,7 @@ Devvit.addMenuItem({
   onPress: async (_, context) => {
     const post = await context.reddit.submitPost({
       title: 'The Glass Cabin — Talk to Cassandra',
-      subredditName: context.subredditName,
+      subredditName: context.subredditName!,
       preview: (
         <vstack alignment="center middle" height="100%" width="100%">
           <text style="heading">✶⃝𓂀</text>
@@ -61,13 +67,16 @@ Devvit.addCustomPostType({
   height: 'tall',
 
   render: context => {
-    const webView = useWebView<WebViewMessage, BackendMessage>({
-      async onMessage(message, webViewRef) {
+    const webView = useWebView({
+      url: 'index.html',
+
+      async onMessage(rawMessage, webView) {
+        const message = rawMessage as WebViewMessage;
         try {
           if (message.type === 'init') {
             const visitorId = await getVisitorId(context);
             const conv = await fetchEchoes(`/api/cassandra/conversation?visitorId=${encodeURIComponent(visitorId)}`);
-            webViewRef.postMessage({
+            webView.postMessage({
               type: 'init_ok',
               visitorId,
               conversationId: conv.id,
@@ -77,12 +86,11 @@ Devvit.addCustomPostType({
 
           if (message.type === 'send_message') {
             const { visitorId, conversationId, content, messages } = message.payload;
-            // Use non-streaming endpoint for reliability in Devvit's fetch environment
             const result = await fetchEchoes('/api/cassandra/message', {
               method: 'POST',
               body: JSON.stringify({ visitorId, conversationId, messages }),
             });
-            webViewRef.postMessage({ type: 'response', response: result.response });
+            webView.postMessage({ type: 'response', response: result.response });
           }
 
           if (message.type === 'new_episode') {
@@ -91,7 +99,7 @@ Devvit.addCustomPostType({
               method: 'POST',
               body: JSON.stringify({ visitorId, currentConversationId: conversationId }),
             });
-            webViewRef.postMessage({ type: 'episode_started', conversationId: result.id });
+            webView.postMessage({ type: 'episode_started', conversationId: result.id });
           }
 
           if (message.type === 'set_name') {
@@ -102,20 +110,20 @@ Devvit.addCustomPostType({
             });
           }
         } catch (err: any) {
-          webViewRef.postMessage({ type: 'error', message: err?.message || 'Unknown error' });
+          webView.postMessage({ type: 'error', message: err?.message || 'Unknown error' });
         }
       },
     });
 
+    // Mount the webview to fill the post area.
+    // The mount() guard prevents double-mounting on re-renders.
+    webView.mount();
+
+    // Preview shown while the webview initialises
     return (
-      <vstack width="100%" height="100%">
-        <webview
-          id="cassandraWebview"
-          url="index.html"
-          onMessage={webView.onMessage}
-          width="100%"
-          height="100%"
-        />
+      <vstack alignment="center middle" width="100%" height="100%">
+        <text style="heading">✶⃝𓂀</text>
+        <text>The cabin is opening...</text>
       </vstack>
     );
   },
