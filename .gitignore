@@ -25,5 +25,9 @@ cassandra/conversations/**/*.json
 cassandra/state/*.json
 cassandra/state/visitors/
 cassandra/state/reflections/
+cassandra/state/analytics-events/
+cassandra/state/thread-journal/
+cassandra/state/thread-drafts/
+cassandra/state/thread-notes/
 !cassandra/state/.gitkeep
 !cassandra/conversations/.gitkeep

@@ -18,9 +18,58 @@ import { fileURLToPath } from 'url';
 import { buildThreadSystemPrompt } from './systemPrompt.js';
 import { THREAD_TOOLS, executeThreadToolCalls } from './tools.js';
 import { logEvent } from '../cassandra/analytics/analyticsLogger.js';
+import { getMissingSummaryDate, saveDaySummary } from '../cassandra/state/stateManager.js';
+import { listVisitorIdsWithConversations, getAllMessagesForDate } from '../cassandra/conversations/conversationManager.js';
+import { loadVisitorProfile, updateVisitorFromSummary } from '../cassandra/state/visitorManager.js';
+import { generateVisitorSummary, generateEndOfDaySummary } from '../cassandra/cassandraService.js';
 
 const MODEL = process.env.THREAD_MODEL || process.env.CASSANDRA_MODEL || 'claude-sonnet-4-6';
 const MAX_TOOL_ITERATIONS = 8;
+
+/**
+ * Generate any missing Cassandra day summaries before Thread's agentic loop.
+ * Mirrors the logic in server.js generateMissingSummaries() — keeps Thread independent
+ * of the HTTP server while acting as a backstop if the Cassandra scheduler missed a day.
+ */
+async function runSyncSummaries() {
+  const missingSummaryDate = await getMissingSummaryDate();
+  if (!missingSummaryDate) {
+    console.log('[thread] Summaries up to date.');
+    return { summarized: null };
+  }
+
+  console.log(`[thread] Missing summary for ${missingSummaryDate} — generating...`);
+  const visitorIds = await listVisitorIdsWithConversations();
+
+  for (const visitorId of visitorIds) {
+    try {
+      const messages = await getAllMessagesForDate(visitorId, missingSummaryDate);
+      if (messages.length === 0) continue;
+      const profile = await loadVisitorProfile(visitorId);
+      const visitorSummary = await generateVisitorSummary(messages, profile);
+      await updateVisitorFromSummary(visitorId, visitorSummary);
+      console.log(`[thread] Visitor summary updated for ${visitorId.substring(0, 8)}…`);
+    } catch (err) {
+      console.error(`[thread] Visitor summary failed for ${visitorId.substring(0, 8)}…:`, err.message);
+    }
+  }
+
+  const allMessages = [];
+  for (const visitorId of visitorIds) {
+    allMessages.push(...await getAllMessagesForDate(visitorId, missingSummaryDate));
+  }
+
+  if (allMessages.length > 0) {
+    allMessages.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+    const summary = await generateEndOfDaySummary(allMessages);
+    await saveDaySummary(missingSummaryDate, summary);
+    console.log(`[thread] Global summary saved for ${missingSummaryDate}.`);
+  } else {
+    console.log(`[thread] No messages found for ${missingSummaryDate} — skipping global summary.`);
+  }
+
+  return { summarized: missingSummaryDate };
+}
 
 /**
  * Run Thread's heartbeat.
@@ -35,6 +84,12 @@ export async function runHeartbeat() {
   const startedAt = new Date().toISOString();
 
   console.log(`[thread] Heartbeat started at ${startedAt}`);
+
+  // Step 1: ensure Cassandra's day summaries are current before the agentic loop
+  const { summarized } = await runSyncSummaries().catch(err => {
+    console.error('[thread] Summary sync failed (non-fatal):', err.message);
+    return { summarized: null };
+  });
 
   // Seed the conversation — Thread reads its own memory and the current moment
   let currentMessages = [
@@ -74,8 +129,8 @@ export async function runHeartbeat() {
     if (response.stop_reason === 'tool_use') {
       response.content.filter(b => b.type === 'tool_use').forEach(b => {
         toolsUsed.add(b.name);
-        if (b.name === 'write_journal') journalWritten = true;
-        if (b.name === 'write_draft') draftsWritten++;
+        if (b.name === 'write_journal_entry') journalWritten = true;
+        if (b.name === 'write_fragment_draft') draftsWritten++;
         if (b.name === 'leave_note') notesLeft++;
       });
       const toolResults = await executeThreadToolCalls(response.content);
@@ -111,6 +166,7 @@ export async function runHeartbeat() {
     iterations: totalIterations,
     startedAt,
     completedAt,
+    summarized,
   };
 }
 
