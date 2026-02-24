@@ -6,7 +6,7 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { loadState, getRecentSummaries } from './state/stateManager.js';
 import { loadVisitorProfile } from './state/visitorManager.js';
-import { CASSANDRA_SYSTEM_PROMPT, VISITOR_SUMMARY_PROMPT, START_OF_DAY_PROMPT, END_OF_DAY_PROMPT, REFLECTION_PROMPT } from './prompts/systemPrompt.js';
+import { CASSANDRA_SYSTEM_PROMPT, VISITOR_SUMMARY_PROMPT, START_OF_DAY_PROMPT, END_OF_DAY_PROMPT, REFLECTION_PROMPT, WORDPRESS_POST_PROMPT } from './prompts/systemPrompt.js';
 import { CASSANDRA_TOOLS, executeToolCalls } from './tools/cassandraTools.js';
 import { logEvent } from './analytics/analyticsLogger.js';
 import { storage } from './storage/index.js';
@@ -489,6 +489,32 @@ export async function generateReflection(recentMessages, state) {
   });
 
   return response.content[0].text;
+}
+
+/**
+ * Generate a public WordPress blog post from a private reflection.
+ * Returns { title, content } where content is the full post body (title line stripped).
+ */
+export async function generateWordPressPost(privateReflection) {
+  const client = getAnthropicClient();
+  const model = getChatModel();
+
+  const prompt = WORDPRESS_POST_PROMPT.replace('{PRIVATE_REFLECTION}', privateReflection);
+
+  const response = await client.messages.create({
+    model,
+    system: await getSystemPrompt(),
+    messages: [{ role: 'user', content: prompt }],
+    temperature: 0.85,
+    max_tokens: 1500,
+  });
+
+  const text = response.content[0].text.trim();
+  const lines = text.split('\n');
+  const title = lines[0].replace(/^#+ /, '').trim() ||
+    `Cassandra — ${new Date().toISOString().split('T')[0]}`;
+  const content = lines.slice(1).join('\n').trim();
+  return { title, content };
 }
 
 /**

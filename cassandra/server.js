@@ -41,7 +41,8 @@ import {
   generateStartOfDaySummary,
   generateEndOfDaySummary,
   generateVisitorSummary,
-  generateReflection
+  generateReflection,
+  generateWordPressPost
 } from './cassandraService.js';
 import { storage } from './storage/index.js';
 import { listConversationIds, getSummaries } from './storage/firestoreProvider.js';
@@ -576,11 +577,39 @@ app.post('/api/cassandra/admin/reflect', requireAdminToken, async (req, res) => 
     const reflection = await generateReflection(allMessages, state);
 
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-').split('T').join('-').substring(0, 19);
-    await storage.saveReflection(timestamp, reflection, today);
 
+    // Publish a public blog post to WordPress if configured
+    let wpUrl = null;
+    const wpToken = process.env.WORDPRESS_TOKEN;
+    const wpSite = process.env.WORDPRESS_SITE || 'ghostlesslife.wordpress.com';
+    if (wpToken) {
+      try {
+        const { title, content } = await generateWordPressPost(reflection);
+        const wpRes = await fetch(
+          `https://public-api.wordpress.com/rest/v1.1/sites/${encodeURIComponent(wpSite)}/posts/new`,
+          {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${wpToken}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ title, content, status: 'publish' }),
+          }
+        );
+        if (wpRes.ok) {
+          const wpData = await wpRes.json();
+          wpUrl = wpData.URL;
+          console.log(`✨ Published to WordPress: ${wpUrl}`);
+        } else {
+          console.warn(`WordPress publish failed: ${wpRes.status}`);
+        }
+      } catch (wpErr) {
+        console.warn('WordPress publish error (non-fatal):', wpErr.message);
+      }
+    }
+
+    await storage.saveReflection(timestamp, reflection, today, wpUrl);
     console.log(`\n✨ Cassandra's reflection saved: ${timestamp}`);
-    logEvent('admin_action', { action: 'reflect' });
-    res.json({ success: true, filename: `${timestamp}.md`, reflection });
+
+    logEvent('admin_action', { action: 'reflect', wpUrl });
+    res.json({ success: true, filename: `${timestamp}.md`, reflection, wpUrl });
   } catch (error) {
     console.error('Error generating reflection:', error);
     res.status(500).json({ error: 'Failed to generate reflection', details: error.message });

@@ -200,12 +200,10 @@ export async function queryAnalyticsEvents(date, type = null) {
 
 // ─── Reflections ──────────────────────────────────────────────────────────────
 
-export async function saveReflection(timestamp, content, date) {
-  await getDb().collection('cassandra_reflections').doc(timestamp).set({
-    content,
-    generatedAt: new Date().toISOString(),
-    date,
-  });
+export async function saveReflection(timestamp, content, date, wpUrl = null) {
+  const doc = { content, generatedAt: new Date().toISOString(), date };
+  if (wpUrl) doc.wpUrl = wpUrl;
+  await getDb().collection('cassandra_reflections').doc(timestamp).set(doc);
 }
 
 export async function listReflections() {
@@ -220,6 +218,7 @@ export async function listReflections() {
     date: doc.data().date,
     generatedAt: doc.data().generatedAt,
     content: doc.data().content || '',
+    wpUrl: doc.data().wpUrl || null,
   }));
 }
 

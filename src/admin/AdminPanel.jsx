@@ -466,7 +466,7 @@ function AdminPanel() {
               { key: 'sync', label: 'Sync Summaries', path: '/api/cassandra/admin/sync-summaries', desc: 'Generate any missing day summaries (safe to run anytime)' },
               { key: 'startday', label: 'Start Day', path: '/api/cassandra/admin/start-day', desc: 'Generate start-of-day context from recent summaries' },
               { key: 'endday', label: 'End Day', path: '/api/cassandra/admin/end-day', desc: 'Generate end-of-day summary for all visitors' },
-              { key: 'reflect', label: 'Generate Reflection', path: '/api/cassandra/admin/reflect', desc: "Cassandra writes a creative reflection in her own voice" },
+              { key: 'reflect', label: 'Generate Reflection + Post', path: '/api/cassandra/admin/reflect', desc: "Cassandra writes a private reflection, then publishes a blog post to WordPress" },
             ].map(({ key, label, path, desc }) => (
               <div key={key} className="admin-action-card">
                 <div className="admin-action-info">
@@ -482,7 +482,23 @@ function AdminPanel() {
                 </button>
                 {actionResults[key] && (
                   <div className={`admin-action-result ${actionResults[key].ok ? 'ok' : 'err'}`}>
-                    <pre>{JSON.stringify(actionResults[key].data || actionResults[key].error, null, 2)}</pre>
+                    {key === 'reflect' && actionResults[key].ok ? (
+                      <div>
+                        <div style={{ marginBottom: '0.5rem' }}>✓ Reflection saved</div>
+                        {actionResults[key].data?.wpUrl
+                          ? <div>✓ Published: <a href={actionResults[key].data.wpUrl} target="_blank" rel="noopener noreferrer">{actionResults[key].data.wpUrl}</a></div>
+                          : <div style={{ opacity: 0.6 }}>WordPress not configured</div>
+                        }
+                        {actionResults[key].data?.reflection && (
+                          <details style={{ marginTop: '0.75rem' }}>
+                            <summary style={{ cursor: 'pointer', opacity: 0.7 }}>Private reflection</summary>
+                            <pre style={{ marginTop: '0.5rem', whiteSpace: 'pre-wrap' }}>{actionResults[key].data.reflection}</pre>
+                          </details>
+                        )}
+                      </div>
+                    ) : (
+                      <pre>{JSON.stringify(actionResults[key].data || actionResults[key].error, null, 2)}</pre>
+                    )}
                   </div>
                 )}
               </div>
@@ -884,11 +900,18 @@ function ReflectionCard({ reflection }) {
   return (
     <div className="admin-summary-card">
       <button className="admin-summary-toggle" onClick={() => setOpen(o => !o)}>
-        <span>✨ {date}{time ? ` · ${time}` : ''}</span>
+        <span>✨ {date}{time ? ` · ${time}` : ''}{reflection.wpUrl ? ' · 🌐' : ''}</span>
         <span className="admin-muted">{open ? '▲' : '▼'}</span>
       </button>
       {open && (
         <div className="admin-summary-content">
+          {reflection.wpUrl && (
+            <div style={{ marginBottom: '0.75rem' }}>
+              <a href={reflection.wpUrl} target="_blank" rel="noopener noreferrer" style={{ fontSize: '0.85rem' }}>
+                → Published on WordPress
+              </a>
+            </div>
+          )}
           <div className="admin-thread-journal-content" style={{ whiteSpace: 'pre-wrap' }}>
             {reflection.content}
           </div>

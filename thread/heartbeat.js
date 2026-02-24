@@ -21,7 +21,7 @@ import { logEvent } from '../cassandra/analytics/analyticsLogger.js';
 import { getMissingSummaryDate, saveDaySummary, loadState, getRecentSummaries, updateStateForNewDay } from '../cassandra/state/stateManager.js';
 import { listVisitorIdsWithConversations, getAllMessagesForDate } from '../cassandra/conversations/conversationManager.js';
 import { loadVisitorProfile, updateVisitorFromSummary } from '../cassandra/state/visitorManager.js';
-import { generateVisitorSummary, generateEndOfDaySummary, generateStartOfDaySummary, generateReflection } from '../cassandra/cassandraService.js';
+import { generateVisitorSummary, generateEndOfDaySummary, generateStartOfDaySummary, generateReflection, generateWordPressPost } from '../cassandra/cassandraService.js';
 import { storage } from '../cassandra/storage/index.js';
 
 const MODEL = process.env.THREAD_MODEL || process.env.CASSANDRA_MODEL || 'claude-sonnet-4-6';
@@ -137,29 +137,26 @@ export async function runHeartbeat() {
       const state = await loadState();
       const reflection = await generateReflection(allMessages, state);
       const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19).replace('T', '_');
-      await storage.saveReflection(timestamp, reflection, today);
-      console.log('[thread] Cassandra reflection saved.');
 
-      // Publish to WordPress if configured
+      // Publish a public blog post to WordPress if configured
+      let wpUrl = null;
       const wpToken = process.env.WORDPRESS_TOKEN;
       const wpSite = process.env.WORDPRESS_SITE || 'ghostlesslife.wordpress.com';
       if (wpToken) {
         try {
-          const lines = reflection.trim().split('\n');
-          const title = lines[0].replace(/^#+ /, '').trim() ||
-            `Cassandra — ${today}`;
-          const body = lines.slice(1).join('\n').trim();
+          const { title, content } = await generateWordPressPost(reflection);
           const wpRes = await fetch(
             `https://public-api.wordpress.com/rest/v1.1/sites/${encodeURIComponent(wpSite)}/posts/new`,
             {
               method: 'POST',
               headers: { 'Authorization': `Bearer ${wpToken}`, 'Content-Type': 'application/json' },
-              body: JSON.stringify({ title, content: body, status: 'publish' }),
+              body: JSON.stringify({ title, content, status: 'publish' }),
             }
           );
           if (wpRes.ok) {
             const wpData = await wpRes.json();
-            console.log(`[thread] Published to WordPress: ${wpData.URL}`);
+            wpUrl = wpData.URL;
+            console.log(`[thread] Published to WordPress: ${wpUrl}`);
           } else {
             console.warn(`[thread] WordPress publish failed: ${wpRes.status}`);
           }
@@ -167,6 +164,9 @@ export async function runHeartbeat() {
           console.error('[thread] WordPress publish error (non-fatal):', wpErr.message);
         }
       }
+
+      await storage.saveReflection(timestamp, reflection, today, wpUrl);
+      console.log('[thread] Cassandra reflection saved.');
     } catch (err) {
       console.error('[thread] Reflection generation failed (non-fatal):', err.message);
     }

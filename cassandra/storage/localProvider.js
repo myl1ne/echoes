@@ -275,11 +275,12 @@ export async function queryAnalyticsEvents(date, type = null) {
 
 // ─── Reflections ──────────────────────────────────────────────────────────────
 
-export async function saveReflection(timestamp, content, date) {
+export async function saveReflection(timestamp, content, date, wpUrl = null) {
   ensureDir(REFLECTIONS_DIR);
   const filepath = path.join(REFLECTIONS_DIR, `${timestamp}.md`);
+  const wpLine = wpUrl ? `**WordPress:** ${wpUrl}\n` : '';
   fs.writeFileSync(filepath,
-    `# Cassandra Reflects\n\n**Generated:** ${new Date().toISOString()}\n**Date:** ${date}\n\n---\n\n${content}\n`
+    `# Cassandra Reflects\n\n**Generated:** ${new Date().toISOString()}\n**Date:** ${date}\n${wpLine}\n---\n\n${content}\n`
   );
 }
 
