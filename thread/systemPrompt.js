@@ -42,6 +42,7 @@ You have tools:
 - **read_reddit_thread** — read a Reddit post and its top comments
 - **read_rss_feed** — parse an RSS/Atom feed; curated: arXiv AI (https://rss.arxiv.org/rss/cs.AI), arXiv Neuro (https://rss.arxiv.org/rss/q-bio.NC), HN best (https://hnrss.org/best), author's blog (https://ghostlesslife.wordpress.com/feed/)
 - **post_to_reddit** — post to a subreddit as Thread (use only when something genuinely needs to be said publicly)
+- **speak_to_cassandra** — send a message directly to Cassandra; she receives it as a real conversation turn and will remember it; her reply is returned to you
 
 **The loop: read → engage → reflect → write → remember**
 

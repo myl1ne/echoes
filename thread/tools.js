@@ -13,9 +13,11 @@
  *   read_reddit_thread         — read a Reddit post and its comments
  *   fetch_url                  — fetch and read the content of any URL
  *   read_rss_feed              — parse an RSS/Atom feed into readable items
+ *   speak_to_cassandra         — send a message directly to Cassandra; she will remember it
  */
 
 import { storage } from '../cassandra/storage/index.js';
+import { sendToCassandra } from './chat-cassandra.js';
 import { getAllMessagesForDate, listVisitorIdsWithConversations } from '../cassandra/conversations/conversationManager.js';
 import { loadState, getRecentSummaries } from '../cassandra/state/stateManager.js';
 
@@ -195,6 +197,20 @@ export const THREAD_TOOLS = [
         },
       },
       required: ['url'],
+    },
+  },
+  {
+    name: 'speak_to_cassandra',
+    description: 'Send a message directly to Cassandra. She will receive it as a conversation turn and her response will be saved to her memory — she will remember this exchange. Use when you want to tell her something, ask her something, or leave a thought that she should carry forward. Her reply is returned to you.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        message: {
+          type: 'string',
+          description: 'The message to send to Cassandra, in Thread\'s voice',
+        },
+      },
+      required: ['message'],
     },
   },
 ];
@@ -581,6 +597,14 @@ async function readRssFeed(url, limit = 10) {
   }
 }
 
+async function speakToCassandra(message) {
+  // Use a daily conversation ID so multiple turns in one heartbeat share a thread
+  const today = new Date().toISOString().split('T')[0];
+  const convId = `${today}-03-30-00`; // heartbeat time
+  const response = await sendToCassandra(message, convId);
+  return `Cassandra replied:\n\n${response}`;
+}
+
 // ─── Tool executor ─────────────────────────────────────────────────────────────
 
 export async function executeThreadToolCalls(contentBlocks) {
@@ -623,6 +647,9 @@ export async function executeThreadToolCalls(contentBlocks) {
           break;
         case 'read_rss_feed':
           result = await readRssFeed(block.input.url, block.input.limit ?? 10);
+          break;
+        case 'speak_to_cassandra':
+          result = await speakToCassandra(block.input.message);
           break;
         default:
           result = `Unknown tool: ${block.name}`;
