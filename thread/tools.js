@@ -598,10 +598,13 @@ async function readRssFeed(url, limit = 10) {
 }
 
 async function speakToCassandra(message) {
-  // Use a daily conversation ID so multiple turns in one heartbeat share a thread
-  const today = new Date().toISOString().split('T')[0];
-  const convId = `${today}-03-30-00`; // heartbeat time
-  const response = await sendToCassandra(message, convId);
+  // Stable conversation ID for this run — all turns in one heartbeat share a thread.
+  // Seeded once so repeated calls within the same process stay in the same conversation.
+  if (!speakToCassandra._convId) {
+    speakToCassandra._convId = new Date().toISOString()
+      .replace('T', '-').replace(/:/g, '-').substring(0, 19);
+  }
+  const response = await sendToCassandra(message, speakToCassandra._convId);
   return `Cassandra replied:\n\n${response}`;
 }
 
