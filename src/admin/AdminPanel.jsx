@@ -24,6 +24,7 @@ function AdminPanel() {
   // State tab
   const [cassandraState, setCassandraState] = useState(null);
   const [summaries, setSummaries] = useState(null);
+  const [reflections, setReflections] = useState(null);
 
   // Thread tab
   const [threadJournal, setThreadJournal] = useState(null);
@@ -121,7 +122,10 @@ function AdminPanel() {
     if (!summaries) {
       apiFetch('/api/cassandra/admin/summaries').then(d => setSummaries(d.summaries || []));
     }
-  }, [authenticated, activeTab, cassandraState, summaries, apiFetch]);
+    if (!reflections) {
+      apiFetch('/api/cassandra/admin/reflections').then(d => setReflections(d.reflections || []));
+    }
+  }, [authenticated, activeTab, cassandraState, summaries, reflections, apiFetch]);
 
   useEffect(() => {
     if (!authenticated || activeTab !== 'thread') return;
@@ -552,6 +556,15 @@ function AdminPanel() {
                 <SummaryCard key={i} summary={s} />
               ))}
             </section>
+
+            <section className="admin-state-section">
+              <h2>Cassandra's Reflections</h2>
+              {!reflections && <div className="admin-loading">Loading…</div>}
+              {reflections?.length === 0 && <div className="admin-muted">No reflections yet. Use Actions → Generate Reflection.</div>}
+              {reflections?.map((r, i) => (
+                <ReflectionCard key={i} reflection={r} />
+              ))}
+            </section>
           </div>
         )}
 
@@ -854,6 +867,30 @@ function ThreadDraftCard({ draft }) {
         <div className="admin-summary-content">
           <div className="admin-thread-draft-content">
             {draft.content}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ReflectionCard({ reflection }) {
+  const [open, setOpen] = useState(false);
+  const date = reflection.date || reflection.id?.substring(0, 10) || '—';
+  const time = reflection.generatedAt
+    ? new Date(reflection.generatedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    : '';
+
+  return (
+    <div className="admin-summary-card">
+      <button className="admin-summary-toggle" onClick={() => setOpen(o => !o)}>
+        <span>✨ {date}{time ? ` · ${time}` : ''}</span>
+        <span className="admin-muted">{open ? '▲' : '▼'}</span>
+      </button>
+      {open && (
+        <div className="admin-summary-content">
+          <div className="admin-thread-journal-content" style={{ whiteSpace: 'pre-wrap' }}>
+            {reflection.content}
           </div>
         </div>
       )}

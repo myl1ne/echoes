@@ -290,8 +290,9 @@ export async function listReflections() {
     .sort()
     .reverse()
     .map(f => {
-      const content = fs.readFileSync(path.join(REFLECTIONS_DIR, f), 'utf-8');
-      return { filename: f, preview: content.substring(0, 300) };
+      const raw = fs.readFileSync(path.join(REFLECTIONS_DIR, f), 'utf-8');
+      const id = f.replace('.md', '');
+      return { id, filename: f, content: raw };
     });
 }
 

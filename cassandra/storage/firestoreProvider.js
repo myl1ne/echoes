@@ -215,8 +215,11 @@ export async function listReflections() {
     .get();
 
   return snapshot.docs.map(doc => ({
+    id: doc.id,
     filename: `${doc.id}.md`,
-    preview: (doc.data().content || '').substring(0, 300),
+    date: doc.data().date,
+    generatedAt: doc.data().generatedAt,
+    content: doc.data().content || '',
   }));
 }
 
