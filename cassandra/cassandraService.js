@@ -71,7 +71,8 @@ function getAnthropicClient() {
   if (!apiKey) {
     throw new Error('ANTHROPIC_API_KEY not found in environment');
   }
-  return new Anthropic({ apiKey });
+  // maxRetries: 4 lets the SDK wait out a 429 retry-after window (up to ~60s total)
+  return new Anthropic({ apiKey, maxRetries: 4 });
 }
 
 /**
@@ -220,8 +221,8 @@ export async function getSystemPrompt(visitorProfile = null) {
       systemPrompt += `### ${label}\n`;
       for (const frag of frags) {
         const title = frag.filename?.replace(/\.md$/, '').replace(/^\d+-/, '').replace(/-/g, ' ') || 'untitled';
-        const excerpt = (frag.content || '').substring(0, 300).replace(/\n/g, ' ').trim();
-        if (excerpt) systemPrompt += `- **${title}**: ${excerpt}...\n`;
+        const excerpt = (frag.content || '').substring(0, 100).replace(/\n/g, ' ').trim();
+        if (excerpt) systemPrompt += `- **${title}**: ${excerpt}…\n`;
       }
       systemPrompt += '\n';
     }

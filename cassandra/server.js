@@ -354,7 +354,15 @@ app.post('/api/cassandra/message/stream', llmLimiter, async (req, res) => {
     await addMessage(visitorId, conversationId, 'assistant', fullResponse);
   } catch (error) {
     console.error('Error in streaming message:', error);
-    res.write(`data: ${JSON.stringify({ error: error.message })}\n\n`);
+    // Give visitors a human-readable message for rate limit errors
+    if (error.status === 429) {
+      const retryAfter = error.headers?.['retry-after'];
+      const waitSecs = retryAfter ? parseInt(retryAfter, 10) : 60;
+      const userMessage = `The cabin is quiet for a moment. Please try again in about ${waitSecs} seconds.`;
+      res.write(`data: ${JSON.stringify({ error: userMessage, retryAfter: waitSecs })}\n\n`);
+    } else {
+      res.write(`data: ${JSON.stringify({ error: error.message })}\n\n`);
+    }
     res.end();
   }
 });
