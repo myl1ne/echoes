@@ -482,7 +482,7 @@ async function fetchUrl(url, start = 0, length = 10000) {
 
 async function fetchPdf(url, start = 0, length = 10000) {
   try {
-    const { default: pdfParse } = await import('pdf-parse/lib/pdf-parse.js');
+    const { default: pdfParse } = await import('pdf-parse');
     const response = await fetch(url, {
       headers: { 'User-Agent': 'Echoes:CassandraAI:1.0' },
       signal: AbortSignal.timeout(30000),
