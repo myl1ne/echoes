@@ -18,10 +18,10 @@ import { fileURLToPath } from 'url';
 import { buildThreadSystemPrompt } from './systemPrompt.js';
 import { THREAD_TOOLS, executeThreadToolCalls } from './tools.js';
 import { logEvent } from '../cassandra/analytics/analyticsLogger.js';
-import { getMissingSummaryDate, saveDaySummary } from '../cassandra/state/stateManager.js';
+import { getMissingSummaryDate, saveDaySummary, loadState, getRecentSummaries, updateStateForNewDay } from '../cassandra/state/stateManager.js';
 import { listVisitorIdsWithConversations, getAllMessagesForDate } from '../cassandra/conversations/conversationManager.js';
 import { loadVisitorProfile, updateVisitorFromSummary } from '../cassandra/state/visitorManager.js';
-import { generateVisitorSummary, generateEndOfDaySummary } from '../cassandra/cassandraService.js';
+import { generateVisitorSummary, generateEndOfDaySummary, generateStartOfDaySummary } from '../cassandra/cassandraService.js';
 
 const MODEL = process.env.THREAD_MODEL || process.env.CASSANDRA_MODEL || 'claude-sonnet-4-6';
 const MAX_TOOL_ITERATIONS = 8;
@@ -90,6 +90,39 @@ export async function runHeartbeat() {
     console.error('[thread] Summary sync failed (non-fatal):', err.message);
     return { summarized: null };
   });
+
+  // Step 2: update Cassandra's global state for today.
+  // start-day is never called automatically — this is the only place it happens.
+  // Note: loadState() returns INITIAL_STATE with today's date when no Firestore doc exists,
+  // so we cannot rely on lastUpdated alone. We check whether the summary is still the
+  // default text as a reliable signal that the state has never been written.
+  await (async () => {
+    const UNINITIALIZED_MARKER = 'I am newly awakened in this conversational form';
+    try {
+      const state = await loadState();
+      const today = new Date().toISOString().split('T')[0];
+      const isInitialState = state.lifetimeSummary?.startsWith(UNINITIALIZED_MARKER);
+      const isStale = state.lastUpdated !== today;
+
+      if (!isInitialState && !isStale) {
+        console.log('[thread] Cassandra state already current — skipping.');
+        return;
+      }
+
+      const recentSummaries = await getRecentSummaries(3);
+      if (recentSummaries.length === 0) {
+        console.log('[thread] No summaries yet — skipping state update.');
+        return;
+      }
+
+      console.log('[thread] Updating Cassandra global state...');
+      const newState = await generateStartOfDaySummary(recentSummaries);
+      await updateStateForNewDay(newState);
+      console.log('[thread] Cassandra global state updated.');
+    } catch (err) {
+      console.error('[thread] State update failed (non-fatal):', err.message);
+    }
+  })();
 
   // Seed the conversation — Thread reads its own memory and the current moment
   let currentMessages = [
