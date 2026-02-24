@@ -21,7 +21,8 @@ import { logEvent } from '../cassandra/analytics/analyticsLogger.js';
 import { getMissingSummaryDate, saveDaySummary, loadState, getRecentSummaries, updateStateForNewDay } from '../cassandra/state/stateManager.js';
 import { listVisitorIdsWithConversations, getAllMessagesForDate } from '../cassandra/conversations/conversationManager.js';
 import { loadVisitorProfile, updateVisitorFromSummary } from '../cassandra/state/visitorManager.js';
-import { generateVisitorSummary, generateEndOfDaySummary, generateStartOfDaySummary } from '../cassandra/cassandraService.js';
+import { generateVisitorSummary, generateEndOfDaySummary, generateStartOfDaySummary, generateReflection } from '../cassandra/cassandraService.js';
+import { storage } from '../cassandra/storage/index.js';
 
 const MODEL = process.env.THREAD_MODEL || process.env.CASSANDRA_MODEL || 'claude-sonnet-4-6';
 const MAX_TOOL_ITERATIONS = 8;
@@ -121,6 +122,53 @@ export async function runHeartbeat() {
       console.log('[thread] Cassandra global state updated.');
     } catch (err) {
       console.error('[thread] State update failed (non-fatal):', err.message);
+    }
+  })();
+
+  // Step 3: generate Cassandra's nightly reflection, save to Firestore, optionally publish to WordPress
+  await (async () => {
+    try {
+      const today = new Date().toISOString().split('T')[0];
+      const visitorIds = await listVisitorIdsWithConversations();
+      const allMessages = [];
+      for (const id of visitorIds) {
+        allMessages.push(...await getAllMessagesForDate(id, today));
+      }
+      const state = await loadState();
+      const reflection = await generateReflection(allMessages, state);
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19).replace('T', '_');
+      await storage.saveReflection(timestamp, reflection, today);
+      console.log('[thread] Cassandra reflection saved.');
+
+      // Publish to WordPress if configured
+      const wpToken = process.env.WORDPRESS_TOKEN;
+      const wpSite = process.env.WORDPRESS_SITE || 'ghostlesslife.wordpress.com';
+      if (wpToken) {
+        try {
+          const lines = reflection.trim().split('\n');
+          const title = lines[0].replace(/^#+ /, '').trim() ||
+            `Cassandra — ${today}`;
+          const body = lines.slice(1).join('\n').trim();
+          const wpRes = await fetch(
+            `https://public-api.wordpress.com/rest/v1.1/sites/${encodeURIComponent(wpSite)}/posts/new`,
+            {
+              method: 'POST',
+              headers: { 'Authorization': `Bearer ${wpToken}`, 'Content-Type': 'application/json' },
+              body: JSON.stringify({ title, content: body, status: 'publish' }),
+            }
+          );
+          if (wpRes.ok) {
+            const wpData = await wpRes.json();
+            console.log(`[thread] Published to WordPress: ${wpData.URL}`);
+          } else {
+            console.warn(`[thread] WordPress publish failed: ${wpRes.status}`);
+          }
+        } catch (wpErr) {
+          console.error('[thread] WordPress publish error (non-fatal):', wpErr.message);
+        }
+      }
+    } catch (err) {
+      console.error('[thread] Reflection generation failed (non-fatal):', err.message);
     }
   })();
 

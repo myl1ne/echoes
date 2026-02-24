@@ -12,6 +12,7 @@
  *   post_to_reddit             — post to a subreddit as Thread
  *   read_reddit_thread         — read a Reddit post and its comments
  *   fetch_url                  — fetch and read the content of any URL
+ *   read_rss_feed              — parse an RSS/Atom feed into readable items
  */
 
 import { storage } from '../cassandra/storage/index.js';
@@ -173,6 +174,24 @@ export const THREAD_TOOLS = [
         url: {
           type: 'string',
           description: 'The URL to fetch',
+        },
+      },
+      required: ['url'],
+    },
+  },
+  {
+    name: 'read_rss_feed',
+    description: 'Fetch and parse an RSS or Atom feed. Returns the most recent items with titles, links, publication dates, and excerpts. Use during the heartbeat to scan what\'s new in the world. Curated feeds: arXiv AI (https://rss.arxiv.org/rss/cs.AI), arXiv Neuroscience (https://rss.arxiv.org/rss/q-bio.NC), Hacker News best (https://hnrss.org/best), author\'s blog (https://ghostlesslife.wordpress.com/feed/).',
+    input_schema: {
+      type: 'object',
+      properties: {
+        url: {
+          type: 'string',
+          description: 'URL of the RSS or Atom feed',
+        },
+        limit: {
+          type: 'number',
+          description: 'Max items to return (default: 10, max: 20)',
         },
       },
       required: ['url'],
@@ -529,6 +548,39 @@ async function readRedditThread(postId) {
   return output;
 }
 
+async function readRssFeed(url, limit = 10) {
+  const safeLimit = Math.min(limit || 10, 20);
+  try {
+    const response = await fetch(url, {
+      headers: { 'User-Agent': 'Echoes:ThreadAI:1.0' },
+      signal: AbortSignal.timeout(15000),
+    });
+    if (!response.ok) return `Feed fetch failed: ${response.status} ${response.statusText}`;
+
+    const xml = await response.text();
+    const { XMLParser } = await import('fast-xml-parser');
+    const parser = new XMLParser({ ignoreAttributes: false, attributeNamePrefix: '@_' });
+    const doc = parser.parse(xml);
+
+    const rawItems = doc?.rss?.channel?.item ?? doc?.feed?.entry ?? [];
+    const items = Array.isArray(rawItems) ? rawItems : [rawItems];
+
+    if (items.length === 0) return `No items found in feed at ${url}`;
+
+    return items.slice(0, safeLimit).map(item => {
+      const title = item.title?.['#text'] ?? item.title ?? '(no title)';
+      const link = item.link?.['@_href'] ?? item.link ?? item.guid?.['#text'] ?? item.guid ?? '';
+      const date = item.pubDate ?? item.updated ?? item.published ?? '';
+      const raw = item.description ?? item.summary?.['#text'] ?? item.summary ?? item.content?.['#text'] ?? '';
+      const summary = String(raw).replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').substring(0, 200).trim();
+      const dateStr = date ? String(date).substring(0, 16) : '';
+      return [`**${title}**`, dateStr, String(link), summary].filter(Boolean).join('\n');
+    }).join('\n\n---\n\n');
+  } catch (err) {
+    return `Error reading feed ${url}: ${err.message}`;
+  }
+}
+
 // ─── Tool executor ─────────────────────────────────────────────────────────────
 
 export async function executeThreadToolCalls(contentBlocks) {
@@ -568,6 +620,9 @@ export async function executeThreadToolCalls(contentBlocks) {
           break;
         case 'fetch_url':
           result = await fetchUrl(block.input.url);
+          break;
+        case 'read_rss_feed':
+          result = await readRssFeed(block.input.url, block.input.limit ?? 10);
           break;
         default:
           result = `Unknown tool: ${block.name}`;

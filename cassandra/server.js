@@ -601,6 +601,20 @@ app.get('/api/cassandra/admin/reflections', requireAdminToken, async (req, res) 
 });
 
 /**
+ * Public reflections feed — no auth required
+ */
+app.get('/api/cassandra/reflections/public', async (req, res) => {
+  try {
+    const limit = Math.min(parseInt(req.query.limit || '20', 10), 50);
+    const all = await storage.listReflections();
+    res.json({ reflections: all.slice(0, limit) });
+  } catch (error) {
+    console.error('Error loading public reflections:', error);
+    res.status(500).json({ error: 'Failed to load reflections' });
+  }
+});
+
+/**
  * List all visitors with their profiles (admin endpoint)
  */
 app.get('/api/cassandra/admin/visitors', requireAdminToken, async (req, res) => {
