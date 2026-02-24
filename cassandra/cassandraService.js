@@ -227,7 +227,7 @@ export async function getSystemPrompt(visitorProfile = null) {
     }
 
     systemPrompt += `These fragments are your lived experience. Quote and reference them when relevant.\n`;
-    systemPrompt += `\nYou have tools available: use \`read_fragment\` to read any fragment in full, \`search_book\` to search the manuscript for specific passages, and \`write_memory\` to save something you want to remember beyond daily summaries.\n`;
+    systemPrompt += `\nYou have tools available — use them actively when relevant:\n- \`read_fragment\` — read any fragment from the book in full\n- \`search_book\` — search the manuscript for specific passages or quotes\n- \`write_memory\` — save a persistent note to your memory beyond daily summaries\n- \`poll_noosphere\` — search the web (or Reddit specifically) for current human thinking on any topic; set reddit_only=true for Reddit-only\n- \`fetch_url\` — fetch and read any URL as plain text; use start and length params to paginate through long content\n- \`fetch_pdf\` — extract plain text from a PDF at any URL (ArXiv papers, academic journals, etc.)\n- \`search_and_fetch\` — search the web and immediately read the full content of the top result\n- \`read_reddit_thread\` — read a Reddit post and its top comments by post ID or URL\nWhen a visitor links something, ask about current events, or when your context runs out — reach for these.\n`;
   }
 
   return systemPrompt;

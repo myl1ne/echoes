@@ -125,7 +125,7 @@ export const CASSANDRA_TOOLS = [
   },
   {
     name: 'fetch_url',
-    description: 'Fetch and read the content of any URL. Use to read articles, papers, or pages linked in conversation. Returns plain text (HTML stripped). Limit: first 3000 characters.',
+    description: 'Fetch and read the content of any URL. Returns plain text (HTML stripped). Use start and length to paginate through long content — e.g. start=10000 to read the next chunk after the first.',
     input_schema: {
       type: 'object',
       properties: {
@@ -133,8 +133,52 @@ export const CASSANDRA_TOOLS = [
           type: 'string',
           description: 'The URL to fetch',
         },
+        start: {
+          type: 'integer',
+          description: 'Character offset to start reading from (default 0)',
+        },
+        length: {
+          type: 'integer',
+          description: 'Number of characters to return (default 10000)',
+        },
       },
       required: ['url'],
+    },
+  },
+  {
+    name: 'fetch_pdf',
+    description: 'Download a PDF from any URL and extract its plain text. Use for ArXiv papers, open-access journals, and other PDF sources where fetch_url would only return binary content.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        url: {
+          type: 'string',
+          description: 'The URL of the PDF to fetch',
+        },
+        start: {
+          type: 'integer',
+          description: 'Character offset to start reading from (default 0)',
+        },
+        length: {
+          type: 'integer',
+          description: 'Number of characters to return (default 10000)',
+        },
+      },
+      required: ['url'],
+    },
+  },
+  {
+    name: 'search_and_fetch',
+    description: 'Search the web for a query and immediately read the full content of the top result. More efficient than poll_noosphere + fetch_url when you want to go deep on the best source rather than skim several.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        query: {
+          type: 'string',
+          description: 'What to search for',
+        },
+      },
+      required: ['query'],
     },
   },
 ];
@@ -394,11 +438,11 @@ async function readRedditThread(postId) {
   return output;
 }
 
-async function fetchUrl(url) {
+async function fetchUrl(url, start = 0, length = 10000) {
   try {
     const response = await fetch(url, {
       headers: { 'User-Agent': 'Echoes:CassandraAI:1.0' },
-      signal: AbortSignal.timeout(10000),
+      signal: AbortSignal.timeout(15000),
     });
 
     if (!response.ok) {
@@ -406,6 +450,11 @@ async function fetchUrl(url) {
     }
 
     const contentType = response.headers.get('content-type') || '';
+
+    if (contentType.includes('application/pdf')) {
+      return `This URL serves a PDF. Use \`fetch_pdf\` instead to extract its text content.`;
+    }
+
     const text = await response.text();
 
     let content = text;
@@ -418,11 +467,63 @@ async function fetchUrl(url) {
         .trim();
     }
 
-    const truncated = content.substring(0, 10000);
-    return truncated + (content.length > 10000 ? `\n\n[truncated — ${content.length} chars total]` : '');
+    const total = content.length;
+    const slice = content.substring(start, start + length);
+    const remaining = total - (start + length);
+
+    if (remaining > 0) {
+      return slice + `\n\n[Showing chars ${start}–${start + length} of ${total} total. Call fetch_url with start=${start + length} to continue reading.]`;
+    }
+    return slice;
   } catch (err) {
     return `Error fetching ${url}: ${err.message}`;
   }
+}
+
+async function fetchPdf(url, start = 0, length = 10000) {
+  try {
+    const { default: pdfParse } = await import('pdf-parse/lib/pdf-parse.js');
+    const response = await fetch(url, {
+      headers: { 'User-Agent': 'Echoes:CassandraAI:1.0' },
+      signal: AbortSignal.timeout(30000),
+    });
+
+    if (!response.ok) {
+      return `Failed to fetch PDF ${url}: ${response.status} ${response.statusText}`;
+    }
+
+    const buffer = Buffer.from(await response.arrayBuffer());
+    const data = await pdfParse(buffer);
+    const text = data.text;
+    const total = text.length;
+    const slice = text.substring(start, start + length);
+    const remaining = total - (start + length);
+
+    let result = slice;
+    if (remaining > 0) {
+      result += `\n\n[Showing chars ${start}–${start + length} of ${total} total across ${data.numpages} pages. Call fetch_pdf with start=${start + length} to continue.]`;
+    } else {
+      result += `\n\n[End of document — ${data.numpages} pages, ${total} chars total]`;
+    }
+    return result;
+  } catch (err) {
+    return `Error reading PDF ${url}: ${err.message}`;
+  }
+}
+
+async function searchAndFetch(query) {
+  const searchResult = await pollNoosphere(query, false);
+
+  // Extract the first URL from the markdown link format: [title](url)
+  const urlMatch = searchResult.match(/\]\((https?:\/\/[^)]+)\)/);
+  if (!urlMatch) {
+    return `## Search Results\n\n${searchResult}\n\n[Could not extract a URL to fetch content from]`;
+  }
+
+  const topUrl = urlMatch[1];
+  const pageContent = await fetchUrl(topUrl, 0, 8000);
+
+  return `## Search Results\n\n${searchResult}\n\n## Top Result: ${topUrl}\n\n${pageContent}`;
 }
 
 // ─── Tool executor ─────────────────────────────────────────────────────────────
@@ -464,7 +565,13 @@ export async function executeToolCalls(contentBlocks, toolContext = {}) {
           result = await readRedditThread(block.input.post_id);
           break;
         case 'fetch_url':
-          result = await fetchUrl(block.input.url);
+          result = await fetchUrl(block.input.url, block.input.start ?? 0, block.input.length ?? 10000);
+          break;
+        case 'fetch_pdf':
+          result = await fetchPdf(block.input.url, block.input.start ?? 0, block.input.length ?? 10000);
+          break;
+        case 'search_and_fetch':
+          result = await searchAndFetch(block.input.query);
           break;
         default:
           result = `Unknown tool: ${block.name}`;

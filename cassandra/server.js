@@ -83,6 +83,8 @@ const llmLimiter = rateLimit({
   max: 10,
   standardHeaders: true,
   legacyHeaders: false,
+  // trust proxy is set to 1 above; suppress redundant validation warnings from express-rate-limit
+  validate: { xForwardedForHeader: false },
   message: { error: 'Too many requests. The cabin needs a moment of quiet.' }
 });
 
@@ -92,6 +94,7 @@ const analyticsLimiter = rateLimit({
   max: 120,
   standardHeaders: true,
   legacyHeaders: false,
+  validate: { xForwardedForHeader: false },
 });
 
 // Serve frontend in production (Cloud Run)
