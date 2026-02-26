@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import ForceGraph2D from 'react-force-graph-2d';
 
 const CATEGORY_COLORS = {
@@ -32,6 +32,7 @@ export default function MindMapViewer({ apiFetch }) {
   const [hoveredNode, setHoveredNode] = useState(null);
   const [selectedNode, setSelectedNode] = useState(null);
   const containerRef = useRef(null);
+  const fgRef = useRef(null);
   const [dimensions, setDimensions] = useState({ width: 800, height: 560 });
 
   // Load entity list on mount
@@ -74,8 +75,9 @@ export default function MindMapViewer({ apiFetch }) {
     loadMindMap(entityId);
   };
 
-  // Transform mind map data into force-graph format
-  const graphData = mindMap ? (() => {
+  // Transform mind map data into force-graph format (memoized — only recomputes when mindMap changes)
+  const graphData = useMemo(() => {
+    if (!mindMap) return { nodes: [], links: [] };
     const nodes = Object.values(mindMap.nodes || {}).map(n => ({
       id: n.label,
       label: n.label,
@@ -97,7 +99,7 @@ export default function MindMapViewer({ apiFetch }) {
       }));
 
     return { nodes, links };
-  })() : { nodes: [], links: [] };
+  }, [mindMap]);
 
   const nodeCount = graphData.nodes.length;
   const edgeCount = graphData.links.length;
@@ -108,7 +110,26 @@ export default function MindMapViewer({ apiFetch }) {
     categoryCounts[n.category] = (categoryCounts[n.category] || 0) + 1;
   }
 
+  // Tune force simulation for breathing room when graph data changes
+  useEffect(() => {
+    const fg = fgRef.current;
+    if (!fg || graphData.nodes.length === 0) return;
+    fg.d3Force('charge').strength(-320);
+    fg.d3Force('link').distance(90);
+    fg.d3ReheatSimulation();
+  }, [graphData]);
+
   const displayNode = selectedNode || hoveredNode;
+
+  const exportPng = useCallback(() => {
+    const canvas = containerRef.current?.querySelector('canvas');
+    if (!canvas) return;
+    const link = document.createElement('a');
+    const label = entities?.find(e => e.id === selectedId)?.label || selectedId;
+    link.download = `mindmap-${label}.png`;
+    link.href = canvas.toDataURL('image/png');
+    link.click();
+  }, [containerRef, entities, selectedId]);
 
   return (
     <div className="mindmap-viewer">
@@ -127,11 +148,14 @@ export default function MindMapViewer({ apiFetch }) {
         </select>
 
         {mindMap && (
-          <span className="mindmap-stats">
-            {nodeCount} nodes · {edgeCount} edges
-            {mindMap.lastUpdated && ` · updated ${mindMap.lastUpdated}`}
-            {mindMap.lastCompressed && ` · compressed ${mindMap.lastCompressed}`}
-          </span>
+          <>
+            <span className="mindmap-stats">
+              {nodeCount} nodes · {edgeCount} edges
+              {mindMap.lastUpdated && ` · updated ${mindMap.lastUpdated}`}
+              {mindMap.lastCompressed && ` · compressed ${mindMap.lastCompressed}`}
+            </span>
+            <button className="admin-btn-sm" onClick={exportPng}>Export PNG</button>
+          </>
         )}
       </div>
 
@@ -152,8 +176,10 @@ export default function MindMapViewer({ apiFetch }) {
       {mindMap && nodeCount > 0 && (
         <div className="mindmap-layout">
           {/* Graph */}
-          <div className="mindmap-graph-wrap" ref={containerRef}>
+          <div className="mindmap-graph-wrap">
+            <div ref={containerRef} style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }} />
             <ForceGraph2D
+              ref={fgRef}
               graphData={graphData}
               width={dimensions.width}
               height={dimensions.height}

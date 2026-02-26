@@ -62,7 +62,7 @@
 .admin-panel {
   display: flex;
   flex-direction: column;
-  min-height: 100vh;
+  height: 100vh;
   background: var(--admin-bg);
   color: var(--admin-text);
   font-family: var(--admin-mono);
@@ -155,8 +155,11 @@
 /* ── Content area ── */
 .admin-content {
   flex: 1;
+  min-height: 0;
   overflow: auto;
   padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
 }
 
 /* ── Visitors tab ── */
@@ -645,7 +648,8 @@
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
-  height: 100%;
+  flex: 1;
+  min-height: 0;
 }
 
 .mindmap-toolbar {
@@ -653,6 +657,21 @@
   align-items: center;
   gap: 1rem;
   flex-shrink: 0;
+}
+
+.admin-btn-sm {
+  padding: 0.25rem 0.65rem;
+  font-size: 0.78rem;
+  background: #1e1e2e;
+  color: #aaa;
+  border: 1px solid #333;
+  border-radius: 4px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.admin-btn-sm:hover {
+  background: #2a2a3e;
+  color: #ddd;
 }
 
 .mindmap-stats {
@@ -671,8 +690,10 @@
 }
 
 .mindmap-graph-wrap {
+  position: relative;
   flex: 1;
   min-width: 0;
+  min-height: 0;
   background: #0d0d0d;
   overflow: hidden;
 }

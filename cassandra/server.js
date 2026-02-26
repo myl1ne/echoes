@@ -735,10 +735,14 @@ app.get('/api/cassandra/admin/mind-maps/:entityId', requireAdminToken, async (re
 app.get('/api/cassandra/admin/mind-maps', requireAdminToken, async (req, res) => {
   try {
     const visitorIds = await listVisitorIdsWithConversations();
+    const profiles = await Promise.all(visitorIds.map(id => loadVisitorProfile(id).catch(() => null)));
     const entities = [
       { id: CASSANDRA_SELF_ID, label: 'Cassandra' },
       { id: THREAD_SELF_ID, label: 'Thread' },
-      ...visitorIds.map(id => ({ id, label: id.substring(0, 8) + '…' })),
+      ...visitorIds.map((id, i) => ({
+        id,
+        label: profiles[i]?.name || id.substring(0, 8) + '…',
+      })),
     ];
     res.json({ entities });
   } catch (error) {
