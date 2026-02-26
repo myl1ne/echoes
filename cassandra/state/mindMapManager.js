@@ -20,14 +20,18 @@ export const CASSANDRA_SELF_ID = 'cassandra-self';
 export const THREAD_SELF_ID = 'thread-self';
 
 const DECAY_FACTOR = 0.85;
-const MIN_ACTIVATION = 0.01;
+const ACTIVATION_FLOOR = 0.001;  // Never deleted — just dims to a memory
 const MIN_EDGE_WEIGHT = 0.05;
 const REINFORCEMENT_BASE = 0.3;
+const NODE_CAP = 60;              // New low-salience nodes not added when above this
+const COMPRESS_THRESHOLD = 40;   // Trigger compression candidate check
+const COMPRESS_INTERVAL_DAYS = 7; // At most once per week
 
 function emptyMindMap(entityId) {
   return {
     entityId,
     lastUpdated: null,
+    lastCompressed: null,
     nodes: {},
     edges: [],
   };
@@ -44,15 +48,13 @@ export async function saveMindMap(entityId, mindMap) {
 
 /**
  * Apply daily activation decay to all nodes and edges.
- * Prunes nodes and edges that fall below minimum thresholds.
+ * Nodes decay to a floor — they are never deleted (they persist as dim memories).
+ * Edges below minimum weight are pruned (edges are cheaper to rebuild than nodes).
  */
 export function applyDecay(mindMap, factor = DECAY_FACTOR) {
   const nodes = mindMap.nodes || {};
   for (const id of Object.keys(nodes)) {
-    nodes[id].activation *= factor;
-    if (nodes[id].activation < MIN_ACTIVATION) {
-      delete nodes[id];
-    }
+    nodes[id].activation = Math.max(ACTIVATION_FLOOR, nodes[id].activation * factor);
   }
 
   mindMap.edges = (mindMap.edges || [])
@@ -64,7 +66,7 @@ export function applyDecay(mindMap, factor = DECAY_FACTOR) {
 
 /**
  * Merge extracted concepts and associations into the existing mind map.
- * - New concepts: add with initial activation
+ * - New concepts: add with initial activation (respects node cap for low-salience)
  * - Existing concepts: reinforce activation based on salience
  * - New edges: add with initial weight
  * - Existing edges: reinforce weight
@@ -73,6 +75,7 @@ export function mergeExtractions(mindMap, extractions, date) {
   const { concepts = [], associations = [] } = extractions;
   const nodes = mindMap.nodes || {};
   const edges = mindMap.edges || [];
+  const nodeCount = Object.keys(nodes).length;
 
   for (const concept of concepts) {
     const label = (concept.label || '').toLowerCase().trim();
@@ -80,12 +83,12 @@ export function mergeExtractions(mindMap, extractions, date) {
     const salience = Math.max(0, Math.min(1, concept.salience || 0.5));
 
     if (nodes[label]) {
-      // Reinforce existing node
+      // Reinforce existing node — always allowed regardless of cap
       nodes[label].activation = Math.min(1.0, nodes[label].activation + salience * REINFORCEMENT_BASE);
       nodes[label].totalMentions = (nodes[label].totalMentions || 0) + 1;
       nodes[label].lastActivated = date;
-    } else {
-      // Add new node
+    } else if (nodeCount < NODE_CAP || salience >= 0.7) {
+      // Add new node only if under cap, or concept is highly salient
       nodes[label] = {
         label,
         category: concept.category || 'idea',
@@ -115,6 +118,73 @@ export function mergeExtractions(mindMap, extractions, date) {
   mindMap.lastUpdated = date;
 
   return mindMap;
+}
+
+/**
+ * Merge semantic near-duplicates identified by Claude.
+ * Each group is [label_to_keep, ...labels_to_merge_in].
+ * Transfers activation + mentions, redirects edges, deduplicates.
+ */
+export function compressMindMap(mindMap, mergeGroups) {
+  const nodes = mindMap.nodes || {};
+  const edges = mindMap.edges || [];
+
+  for (const group of mergeGroups) {
+    if (!group || group.length < 2) continue;
+    const [keepLabel, ...mergeLabels] = group.map(l => (l || '').toLowerCase().trim());
+    if (!keepLabel || !nodes[keepLabel]) continue;
+
+    for (const mergeLabel of mergeLabels) {
+      if (!mergeLabel || !nodes[mergeLabel] || mergeLabel === keepLabel) continue;
+
+      // Transfer activation and mention count to the surviving node
+      nodes[keepLabel].activation = Math.min(1.0,
+        nodes[keepLabel].activation + nodes[mergeLabel].activation
+      );
+      nodes[keepLabel].totalMentions =
+        (nodes[keepLabel].totalMentions || 0) + (nodes[mergeLabel].totalMentions || 0);
+
+      // Redirect all edges referencing the merged-away node
+      for (const edge of edges) {
+        if (edge.from === mergeLabel) edge.from = keepLabel;
+        if (edge.to === mergeLabel) edge.to = keepLabel;
+      }
+
+      delete nodes[mergeLabel];
+    }
+  }
+
+  // Deduplicate edges: same (from, to, type) → keep higher weight; drop self-loops
+  const edgeMap = new Map();
+  for (const edge of edges) {
+    if (edge.from === edge.to) continue;
+    const key = `${edge.from}|${edge.to}|${edge.type}`;
+    const existing = edgeMap.get(key);
+    if (!existing || edge.weight > existing.weight) {
+      edgeMap.set(key, edge);
+    }
+  }
+
+  mindMap.nodes = nodes;
+  mindMap.edges = Array.from(edgeMap.values());
+  mindMap.lastCompressed = new Date().toISOString().split('T')[0];
+
+  return mindMap;
+}
+
+/**
+ * Return true if this mind map should be compressed.
+ * Triggers when node count is above threshold and it hasn't been compressed recently.
+ */
+export function needsCompression(mindMap) {
+  const nodeCount = Object.keys(mindMap?.nodes || {}).length;
+  if (nodeCount < COMPRESS_THRESHOLD) return false;
+
+  const lastCompressed = mindMap.lastCompressed;
+  if (!lastCompressed) return true;
+
+  const daysSince = (Date.now() - new Date(lastCompressed).getTime()) / (1000 * 60 * 60 * 24);
+  return daysSince >= COMPRESS_INTERVAL_DAYS;
 }
 
 /**

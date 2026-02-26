@@ -46,6 +46,7 @@ import {
 } from './cassandraService.js';
 import { storage } from './storage/index.js';
 import { listConversationIds, getSummaries } from './storage/firestoreProvider.js';
+import { loadMindMap, CASSANDRA_SELF_ID, THREAD_SELF_ID } from './state/mindMapManager.js';
 import { runHeartbeat } from '../thread/heartbeat.js';
 import { logEvent } from './analytics/analyticsLogger.js';
 
@@ -709,6 +710,40 @@ app.get('/api/cassandra/admin/summaries', requireAdminToken, async (req, res) =>
   } catch (error) {
     console.error('Error loading summaries:', error);
     res.status(500).json({ error: 'Failed to load summaries' });
+  }
+});
+
+// ─── Mind Map endpoints ───────────────────────────────────────────────────────
+
+/**
+ * Get the mind map for a specific entity (visitor, cassandra-self, thread-self).
+ */
+app.get('/api/cassandra/admin/mind-maps/:entityId', requireAdminToken, async (req, res) => {
+  try {
+    const { entityId } = req.params;
+    const mindMap = await loadMindMap(entityId);
+    res.json({ mindMap });
+  } catch (error) {
+    console.error('Error loading mind map:', error);
+    res.status(500).json({ error: 'Failed to load mind map' });
+  }
+});
+
+/**
+ * List entity IDs that have mind maps (visitors + the two special agent IDs).
+ */
+app.get('/api/cassandra/admin/mind-maps', requireAdminToken, async (req, res) => {
+  try {
+    const visitorIds = await listVisitorIdsWithConversations();
+    const entities = [
+      { id: CASSANDRA_SELF_ID, label: 'Cassandra' },
+      { id: THREAD_SELF_ID, label: 'Thread' },
+      ...visitorIds.map(id => ({ id, label: id.substring(0, 8) + '…' })),
+    ];
+    res.json({ entities });
+  } catch (error) {
+    console.error('Error listing mind map entities:', error);
+    res.status(500).json({ error: 'Failed to list mind map entities' });
   }
 });
 

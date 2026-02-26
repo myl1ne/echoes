@@ -636,3 +636,60 @@ ${textSample}`;
   }
 }
 
+/**
+ * Identify semantic near-duplicates in a mind map for compression.
+ * Returns merge groups: each group is [label_to_keep, ...labels_to_merge_in].
+ * The first label in each group is the canonical one (higher activation wins).
+ *
+ * @param {Object} mindMap
+ * @returns {Promise<string[][]>} merge groups, or [] if nothing needs merging
+ */
+export async function generateMindMapMergeGroups(mindMap) {
+  const client = getAnthropicClient();
+  const model = getChatModel();
+
+  const nodes = mindMap?.nodes || {};
+  const nodeCount = Object.keys(nodes).length;
+  if (nodeCount < 5) return [];
+
+  // Sort by activation so Claude can see which is more active (should be kept)
+  const nodeList = Object.values(nodes)
+    .sort((a, b) => b.activation - a.activation)
+    .map(n => `${n.label} (${n.category}, activation: ${n.activation.toFixed(3)})`)
+    .join('\n');
+
+  const prompt = `Here are the concepts in a visitor's mind map, sorted by activation level:
+
+${nodeList}
+
+Some of these may be near-synonyms or semantic near-duplicates that accumulated over time. Your task: identify any groups that should be merged into a single concept. The first label in each group should be the one to keep (prefer higher activation / more general label).
+
+Rules:
+- Only merge concepts you're confident are the same thing (e.g. "being alone" and "loneliness")
+- Do NOT merge concepts that are meaningfully distinct even if related (e.g. "grief" and "loss")
+- Return [] if nothing should be merged
+
+Return JSON only:
+[
+  ["label_to_keep", "label_to_merge_in", ...],
+  ...
+]`;
+
+  try {
+    const response = await client.messages.create({
+      model,
+      system: 'You are a careful semantic analyst. Return valid JSON only.',
+      messages: [{ role: 'user', content: prompt }],
+      temperature: 0.2,
+      max_tokens: 500,
+    });
+
+    const raw = extractJSON(response.content[0].text);
+    const groups = safeParseJSON(raw, 'generateMindMapMergeGroups');
+    return Array.isArray(groups) ? groups.filter(g => Array.isArray(g) && g.length >= 2) : [];
+  } catch (err) {
+    console.warn('[cassandra] generateMindMapMergeGroups failed (non-fatal):', err.message);
+    return [];
+  }
+}
+

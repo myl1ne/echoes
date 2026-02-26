@@ -21,8 +21,8 @@ import { logEvent } from '../cassandra/analytics/analyticsLogger.js';
 import { getMissingSummaryDate, saveDaySummary, loadState, getRecentSummaries, updateStateForNewDay } from '../cassandra/state/stateManager.js';
 import { listVisitorIdsWithConversations, getAllMessagesForDate } from '../cassandra/conversations/conversationManager.js';
 import { loadVisitorProfile, updateVisitorFromSummary } from '../cassandra/state/visitorManager.js';
-import { generateVisitorSummary, generateEndOfDaySummary, generateStartOfDaySummary, generateReflection, generateWordPressPost, extractMindMapConcepts } from '../cassandra/cassandraService.js';
-import { loadMindMap, saveMindMap, applyDecay, mergeExtractions, CASSANDRA_SELF_ID } from '../cassandra/state/mindMapManager.js';
+import { generateVisitorSummary, generateEndOfDaySummary, generateStartOfDaySummary, generateReflection, generateWordPressPost, extractMindMapConcepts, generateMindMapMergeGroups } from '../cassandra/cassandraService.js';
+import { loadMindMap, saveMindMap, applyDecay, mergeExtractions, compressMindMap, needsCompression, CASSANDRA_SELF_ID } from '../cassandra/state/mindMapManager.js';
 import { storage } from '../cassandra/storage/index.js';
 
 const MODEL = process.env.THREAD_MODEL || process.env.CASSANDRA_MODEL || 'claude-sonnet-4-6';
@@ -62,7 +62,19 @@ async function runSyncSummaries() {
         applyDecay(mindMap);
         const existingLabels = Object.keys(mindMap.nodes || {});
         const extractions = await extractMindMapConcepts(messages, existingLabels, 'user');
-        const updated = mergeExtractions(mindMap, extractions, missingSummaryDate);
+        let updated = mergeExtractions(mindMap, extractions, missingSummaryDate);
+
+        // Compress if graph is getting dense with potential near-duplicates
+        if (needsCompression(updated)) {
+          const mergeGroups = await generateMindMapMergeGroups(updated);
+          if (mergeGroups.length > 0) {
+            updated = compressMindMap(updated, mergeGroups);
+            console.log(`[thread] Mind map compressed for ${visitorId.substring(0, 8)}… (${mergeGroups.length} merge groups)`);
+          } else {
+            updated.lastCompressed = missingSummaryDate; // Mark as checked even if nothing merged
+          }
+        }
+
         await saveMindMap(visitorId, updated);
         console.log(`[thread] Mind map updated for ${visitorId.substring(0, 8)}… (${Object.keys(updated.nodes).length} nodes)`);
       } catch (mmErr) {
