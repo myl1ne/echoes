@@ -12,7 +12,9 @@
     "cassandra:summary": "node cassandra/generate-summary.js",
     "cassandra:test-summary": "node cassandra/test-auto-summary.js",
     "cassandra:list": "node cassandra/list-conversations.js",
-    "parse-fragments": "node parse-fragments.js"
+    "parse-fragments": "node parse-fragments.js",
+    "mindmap:backfill": "node cassandra/backfill-mind-maps.js",
+    "mindmap:backfill:dry": "node cassandra/backfill-mind-maps.js --dry-run"
   },
   "keywords": [
     "digital-literature",
