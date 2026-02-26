@@ -21,7 +21,8 @@ import { logEvent } from '../cassandra/analytics/analyticsLogger.js';
 import { getMissingSummaryDate, saveDaySummary, loadState, getRecentSummaries, updateStateForNewDay } from '../cassandra/state/stateManager.js';
 import { listVisitorIdsWithConversations, getAllMessagesForDate } from '../cassandra/conversations/conversationManager.js';
 import { loadVisitorProfile, updateVisitorFromSummary } from '../cassandra/state/visitorManager.js';
-import { generateVisitorSummary, generateEndOfDaySummary, generateStartOfDaySummary, generateReflection, generateWordPressPost } from '../cassandra/cassandraService.js';
+import { generateVisitorSummary, generateEndOfDaySummary, generateStartOfDaySummary, generateReflection, generateWordPressPost, extractMindMapConcepts } from '../cassandra/cassandraService.js';
+import { loadMindMap, saveMindMap, applyDecay, mergeExtractions, CASSANDRA_SELF_ID } from '../cassandra/state/mindMapManager.js';
 import { storage } from '../cassandra/storage/index.js';
 
 const MODEL = process.env.THREAD_MODEL || process.env.CASSANDRA_MODEL || 'claude-sonnet-4-6';
@@ -42,16 +43,51 @@ async function runSyncSummaries() {
   console.log(`[thread] Missing summary for ${missingSummaryDate} — generating...`);
   const visitorIds = await listVisitorIdsWithConversations();
 
+  const allAssistantMessages = [];
+
   for (const visitorId of visitorIds) {
     try {
       const messages = await getAllMessagesForDate(visitorId, missingSummaryDate);
       if (messages.length === 0) continue;
+
+      // Generate and save visitor profile summary
       const profile = await loadVisitorProfile(visitorId);
       const visitorSummary = await generateVisitorSummary(messages, profile);
       await updateVisitorFromSummary(visitorId, visitorSummary);
       console.log(`[thread] Visitor summary updated for ${visitorId.substring(0, 8)}…`);
+
+      // Update visitor mind map (from user turns — what the visitor brings)
+      try {
+        const mindMap = await loadMindMap(visitorId);
+        applyDecay(mindMap);
+        const existingLabels = Object.keys(mindMap.nodes || {});
+        const extractions = await extractMindMapConcepts(messages, existingLabels, 'user');
+        const updated = mergeExtractions(mindMap, extractions, missingSummaryDate);
+        await saveMindMap(visitorId, updated);
+        console.log(`[thread] Mind map updated for ${visitorId.substring(0, 8)}… (${Object.keys(updated.nodes).length} nodes)`);
+      } catch (mmErr) {
+        console.warn(`[thread] Mind map update failed for ${visitorId.substring(0, 8)}… (non-fatal):`, mmErr.message);
+      }
+
+      // Collect assistant turns for Cassandra's own mind map
+      allAssistantMessages.push(...messages.filter(m => m.role === 'assistant'));
     } catch (err) {
       console.error(`[thread] Visitor summary failed for ${visitorId.substring(0, 8)}…:`, err.message);
+    }
+  }
+
+  // Update Cassandra's own mind map (from her assistant turns across all visitors)
+  if (allAssistantMessages.length > 0) {
+    try {
+      const cassandraMindMap = await loadMindMap(CASSANDRA_SELF_ID);
+      applyDecay(cassandraMindMap);
+      const existingLabels = Object.keys(cassandraMindMap.nodes || {});
+      const extractions = await extractMindMapConcepts(allAssistantMessages, existingLabels, 'all');
+      const updated = mergeExtractions(cassandraMindMap, extractions, missingSummaryDate);
+      await saveMindMap(CASSANDRA_SELF_ID, updated);
+      console.log(`[thread] Cassandra mind map updated (${Object.keys(updated.nodes).length} nodes)`);
+    } catch (mmErr) {
+      console.warn('[thread] Cassandra mind map update failed (non-fatal):', mmErr.message);
     }
   }
 

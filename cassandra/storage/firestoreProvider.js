@@ -198,6 +198,17 @@ export async function queryAnalyticsEvents(date, type = null) {
   return snap.docs.map(d => d.data());
 }
 
+// ─── Mind Maps ────────────────────────────────────────────────────────────────
+
+export async function getMindMap(entityId) {
+  const doc = await getDb().collection('cassandra_mind_maps').doc(entityId).get();
+  return doc.exists ? doc.data() : null;
+}
+
+export async function setMindMap(entityId, data) {
+  await getDb().collection('cassandra_mind_maps').doc(entityId).set(data);
+}
+
 // ─── Reflections ──────────────────────────────────────────────────────────────
 
 export async function saveReflection(timestamp, content, date, wpUrl = null) {
@@ -237,6 +248,8 @@ export const firestoreProvider = {
   listConversationIds,
   listAllConversationDates,
   listVisitorIdsWithConversations,
+  getMindMap,
+  setMindMap,
   saveReflection,
   listReflections,
   saveNote,

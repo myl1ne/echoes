@@ -155,8 +155,15 @@ Format as JSON:
   "recentThemes": ["theme1", "theme2"],
   "knownFacts": ["fact1", "fact2"],
   "tone": "A brief description of how you speak with this person — intimate, formal, playful, etc.",
-  "name": "Their name if they shared it, or null"
-}`;
+  "name": "Their name if they shared it, or null",
+  "psychProfile": {
+    "coreNeed": "The underlying need or longing driving this person (1 sentence, or null if unclear)",
+    "emotionalTone": "The emotional register of this conversation — grief, curiosity, restlessness, etc.",
+    "pattern": "A recurring psychological pattern you noticed — avoidance, seeking, ambivalence, circling (or null)"
+  }
+}
+
+psychProfile is optional — if there isn't enough to go on, set it to null. Only fill it when you genuinely observed something.`;
 
 export const END_OF_DAY_PROMPT = `Reflect on today's conversation and create:
 

@@ -273,6 +273,20 @@ export async function queryAnalyticsEvents(date, type = null) {
   return type ? events.filter(e => e.type === type) : events;
 }
 
+// ─── Mind Maps ────────────────────────────────────────────────────────────────
+
+const MIND_MAPS_DIR = path.join(STATE_DIR, 'mind-maps');
+
+export async function getMindMap(entityId) {
+  ensureDir(MIND_MAPS_DIR);
+  return readJSON(path.join(MIND_MAPS_DIR, `${entityId}.json`));
+}
+
+export async function setMindMap(entityId, data) {
+  ensureDir(MIND_MAPS_DIR);
+  writeJSON(path.join(MIND_MAPS_DIR, `${entityId}.json`), data);
+}
+
 // ─── Reflections ──────────────────────────────────────────────────────────────
 
 export async function saveReflection(timestamp, content, date, wpUrl = null) {
@@ -312,6 +326,8 @@ export const localProvider = {
   listConversationIds,
   listAllConversationDates,
   listVisitorIdsWithConversations,
+  getMindMap,
+  setMindMap,
   saveReflection,
   listReflections,
   saveNote,

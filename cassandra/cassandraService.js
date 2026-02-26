@@ -122,14 +122,16 @@ async function buildGoals() {
 }
 
 /**
- * Build visitor context section for system prompt
+ * Build visitor context section for system prompt.
+ * @param {Object} visitorProfile - Visitor profile from visitorManager
+ * @param {Object|null} mindMap - Optional mind map for this visitor
  */
-function buildVisitorContext(visitorProfile) {
+function buildVisitorContext(visitorProfile, mindMap = null) {
   if (!visitorProfile) {
     return "This is someone new. You haven't met them before. You might gently discover who they are through conversation.";
   }
 
-  const { name, relationshipSummary, recentThemes, knownFacts, tone, conversationCount, firstSeen } = visitorProfile;
+  const { name, relationshipSummary, recentThemes, knownFacts, tone, conversationCount, firstSeen, psychProfile } = visitorProfile;
 
   if (!name && (!conversationCount || conversationCount <= 1)) {
     return "This is someone new. You haven't met them before. You might gently discover who they are through conversation.";
@@ -151,6 +153,32 @@ function buildVisitorContext(visitorProfile) {
   if (recentThemes?.length > 0) context += `### Themes You've Explored Together\n${recentThemes.map(t => `- ${t}`).join('\n')}\n\n`;
   if (knownFacts?.length > 0) context += `### What You Know About Them\n${knownFacts.map(f => `- ${f}`).join('\n')}\n\n`;
   if (tone) context += `### How You Speak With Them\n${tone}\n\n`;
+
+  // Psychological profile — internal note from summary extraction
+  if (psychProfile?.coreNeed || psychProfile?.pattern) {
+    context += `### Psychological Note\n`;
+    if (psychProfile.coreNeed) context += `Core need: ${psychProfile.coreNeed}\n`;
+    if (psychProfile.emotionalTone) context += `Emotional tone: ${psychProfile.emotionalTone}\n`;
+    if (psychProfile.pattern) context += `Pattern: ${psychProfile.pattern}\n`;
+    context += '\n';
+  }
+
+  // Mind map — hot nodes (concepts this visitor tends to return to)
+  if (mindMap?.nodes) {
+    const hotNodes = Object.values(mindMap.nodes)
+      .filter(n => n.activation >= 0.3)
+      .sort((a, b) => b.activation - a.activation)
+      .slice(0, 8);
+
+    if (hotNodes.length > 0) {
+      context += `### Concepts This Visitor Returns To\n`;
+      for (const node of hotNodes) {
+        const strength = node.activation >= 0.7 ? 'strong' : node.activation >= 0.4 ? 'moderate' : 'fading';
+        context += `- ${node.label} (${strength})\n`;
+      }
+      context += '\n';
+    }
+  }
 
   return context || "This is someone new. You haven't met them before.";
 }
@@ -190,13 +218,14 @@ async function buildThreadContext() {
 /**
  * Get the complete system prompt for Cassandra
  * @param {Object} visitorProfile - Optional visitor profile for personalization
+ * @param {Object|null} mindMap - Optional mind map for this visitor
  */
-export async function getSystemPrompt(visitorProfile = null) {
+export async function getSystemPrompt(visitorProfile = null, mindMap = null) {
   const seed = loadSeed();
 
   let systemPrompt = CASSANDRA_SYSTEM_PROMPT
     .replace('{{DAILY_CONTEXT}}', await buildDailyContext())
-    .replace('{{VISITOR_CONTEXT}}', buildVisitorContext(visitorProfile))
+    .replace('{{VISITOR_CONTEXT}}', buildVisitorContext(visitorProfile, mindMap))
     .replace('{{GOALS}}', await buildGoals());
 
   // Add Thread's recent observations if available
@@ -247,7 +276,8 @@ export async function getSystemPrompt(visitorProfile = null) {
 export async function sendMessage(messages, onChunk = null, currentConversationId = null, currentFragmentId = null, visitorId = null, onStatus = null) {
   const client = getAnthropicClient();
   const visitorProfile = visitorId ? await loadVisitorProfile(visitorId) : null;
-  let systemPrompt = await getSystemPrompt(visitorProfile);
+  const mindMap = visitorId ? await storage.getMindMap(visitorId).catch(() => null) : null;
+  let systemPrompt = await getSystemPrompt(visitorProfile, mindMap);
   const model = getChatModel();
 
   // Inject full text of the fragment the reader is currently viewing
@@ -542,5 +572,67 @@ export async function generateEndOfDaySummary(conversationMessages) {
 
   const content = extractJSON(response.content[0].text);
   return safeParseJSON(content, 'generateEndOfDaySummary');
+}
+
+/**
+ * Extract concepts and associations from a set of messages to update a mind map.
+ * Used for visitor mind maps (user turns) and agent mind maps (assistant/journal turns).
+ *
+ * @param {Array} messages - Array of { role, content } message objects
+ * @param {string[]} existingLabels - Existing node labels for normalization
+ * @param {'user'|'assistant'|'all'} roleFilter - Which role's turns to extract from
+ * @returns {Promise<{ concepts: Array, associations: Array }>}
+ */
+export async function extractMindMapConcepts(messages, existingLabels = [], roleFilter = 'user') {
+  const client = getAnthropicClient();
+  const model = getChatModel();
+
+  const filtered = roleFilter === 'all'
+    ? messages
+    : messages.filter(m => m.role === roleFilter);
+
+  if (filtered.length === 0) return { concepts: [], associations: [] };
+
+  const textSample = filtered
+    .slice(-30)
+    .map(m => m.content.substring(0, 400))
+    .join('\n\n---\n\n');
+
+  const existingHint = existingLabels.length > 0
+    ? `\n\nExisting known concepts (reuse these labels when they match, rather than creating near-duplicates): ${existingLabels.join(', ')}`
+    : '';
+
+  const prompt = `Given these messages, extract the concepts that form the inner world of the person who wrote them. Focus on what recurs, what carries weight, what is circled around rather than stated directly.${existingHint}
+
+Return JSON only:
+{
+  "concepts": [
+    { "label": "concept name (1-3 words, lowercase)", "category": "emotion|value|experience|person|place|idea|question", "salience": 0.0-1.0 }
+  ],
+  "associations": [
+    { "from": "concept label", "to": "concept label", "type": "co-occurs|deepens|causes|contrasts" }
+  ]
+}
+
+Extract 5-12 concepts. Only include associations between concepts you also listed. Salience = how central this is to this particular set of messages.
+
+Messages:
+${textSample}`;
+
+  try {
+    const response = await client.messages.create({
+      model,
+      system: 'You are a careful reader extracting the conceptual structure of a conversation. Return valid JSON only.',
+      messages: [{ role: 'user', content: prompt }],
+      temperature: 0.3,
+      max_tokens: 1000,
+    });
+
+    const raw = extractJSON(response.content[0].text);
+    return safeParseJSON(raw, 'extractMindMapConcepts');
+  } catch (err) {
+    console.warn('[cassandra] extractMindMapConcepts failed (non-fatal):', err.message);
+    return { concepts: [], associations: [] };
+  }
 }
 

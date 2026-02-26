@@ -111,6 +111,9 @@ export async function updateVisitorFromSummary(visitorId, summaryData) {
   if (summaryData.name && !profile.name) {
     profile.name = summaryData.name;
   }
+  if (summaryData.psychProfile) {
+    profile.psychProfile = summaryData.psychProfile;
+  }
 
   await saveVisitorProfile(visitorId, profile);
   return profile;

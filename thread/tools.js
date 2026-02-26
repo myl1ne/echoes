@@ -21,6 +21,8 @@ import { sendToCassandra, THREAD_VISITOR_ID } from './chat-cassandra.js';
 import { getAllMessagesForDate, listVisitorIdsWithConversations, listConversationDates } from '../cassandra/conversations/conversationManager.js';
 import { loadState, getRecentSummaries } from '../cassandra/state/stateManager.js';
 import { loadVisitorProfile } from '../cassandra/state/visitorManager.js';
+import { loadMindMap, saveMindMap, applyDecay, mergeExtractions, THREAD_SELF_ID } from '../cassandra/state/mindMapManager.js';
+import { extractMindMapConcepts } from '../cassandra/cassandraService.js';
 
 // ─── Tool definitions ──────────────────────────────────────────────────────────
 
@@ -335,6 +337,20 @@ async function writeJournalEntry(content) {
   const date = now.toISOString().split('T')[0];
 
   await storage.saveThreadJournalEntry(timestamp, content, date);
+
+  // Update Thread's own mind map from the journal entry (non-fatal)
+  try {
+    const mindMap = await loadMindMap(THREAD_SELF_ID);
+    applyDecay(mindMap);
+    const existingLabels = Object.keys(mindMap.nodes || {});
+    const messages = [{ role: 'assistant', content }];
+    const extractions = await extractMindMapConcepts(messages, existingLabels, 'all');
+    const updated = mergeExtractions(mindMap, extractions, date);
+    await saveMindMap(THREAD_SELF_ID, updated);
+  } catch (mmErr) {
+    console.warn('[thread] Thread mind map update failed (non-fatal):', mmErr.message);
+  }
+
   return `Journal entry saved (${timestamp}).`;
 }
 
