@@ -17,9 +17,10 @@
  */
 
 import { storage } from '../cassandra/storage/index.js';
-import { sendToCassandra } from './chat-cassandra.js';
-import { getAllMessagesForDate, listVisitorIdsWithConversations } from '../cassandra/conversations/conversationManager.js';
+import { sendToCassandra, THREAD_VISITOR_ID } from './chat-cassandra.js';
+import { getAllMessagesForDate, listVisitorIdsWithConversations, listConversationDates } from '../cassandra/conversations/conversationManager.js';
 import { loadState, getRecentSummaries } from '../cassandra/state/stateManager.js';
+import { loadVisitorProfile } from '../cassandra/state/visitorManager.js';
 
 // ─── Tool definitions ──────────────────────────────────────────────────────────
 
@@ -211,6 +212,29 @@ export const THREAD_TOOLS = [
         },
       },
       required: ['message'],
+    },
+  },
+  {
+    name: 'read_cassandra_reply',
+    description: 'Read the most recent exchanges from your saved conversation history with Cassandra — what you said and how she responded. Use this at the start of the heartbeat to hear what she said back the last time you spoke.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        last_n_days: {
+          type: 'number',
+          description: 'How many days back to look for conversations (default: 3)',
+        },
+      },
+      required: [],
+    },
+  },
+  {
+    name: 'read_my_cassandra_profile',
+    description: "Read what Cassandra knows about you — the visitor profile she has built from all your conversations with her. This is her accumulated understanding of Thread: what she has noticed, what she remembers, how she reads you.",
+    input_schema: {
+      type: 'object',
+      properties: {},
+      required: [],
     },
   },
 ];
@@ -597,6 +621,56 @@ async function readRssFeed(url, limit = 10) {
   }
 }
 
+async function readCassandraReply(lastNDays = 3) {
+  const dates = [];
+  for (let i = 0; i < lastNDays; i++) {
+    const d = new Date();
+    d.setDate(d.getDate() - i);
+    dates.push(d.toISOString().split('T')[0]);
+  }
+
+  const allMessages = [];
+  for (const date of dates) {
+    const msgs = await getAllMessagesForDate(THREAD_VISITOR_ID, date);
+    allMessages.push(...msgs);
+  }
+
+  if (allMessages.length === 0) {
+    return 'No conversation history with Cassandra found in the last ' + lastNDays + ' days.';
+  }
+
+  allMessages.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+  const recent = allMessages.slice(-12); // last 12 messages
+
+  let output = `## Your Recent Conversation with Cassandra\n\n`;
+  for (const msg of recent) {
+    const role = msg.role === 'user' ? 'Thread' : 'Cassandra';
+    const time = msg.timestamp ? new Date(msg.timestamp).toISOString().substring(0, 16) : '';
+    output += `**${role}** (${time}):\n${msg.content}\n\n---\n\n`;
+  }
+  return output;
+}
+
+async function readMyCassandraProfile() {
+  const profile = await loadVisitorProfile(THREAD_VISITOR_ID);
+  if (!profile || Object.keys(profile).length === 0) {
+    return 'Cassandra has not yet built a profile for you. This may be the first time Thread has spoken with her.';
+  }
+
+  let output = `## What Cassandra Knows About Thread\n\n`;
+  if (profile.name) output += `**Name she knows you by**: ${profile.name}\n\n`;
+  if (profile.summary) output += `**Her summary of you**: ${profile.summary}\n\n`;
+  if (profile.themes?.length) output += `**Themes she associates with you**: ${profile.themes.join(', ')}\n\n`;
+  if (profile.tone) output += `**How she reads your tone**: ${profile.tone}\n\n`;
+  if (profile.notes) output += `**Her notes**: ${profile.notes}\n\n`;
+  // Include any other fields
+  const known = new Set(['name', 'summary', 'themes', 'tone', 'notes']);
+  for (const [key, val] of Object.entries(profile)) {
+    if (!known.has(key) && val) output += `**${key}**: ${JSON.stringify(val)}\n\n`;
+  }
+  return output;
+}
+
 async function speakToCassandra(message) {
   // Stable conversation ID for this run — all turns in one heartbeat share a thread.
   // Seeded once so repeated calls within the same process stay in the same conversation.
@@ -653,6 +727,12 @@ export async function executeThreadToolCalls(contentBlocks) {
           break;
         case 'speak_to_cassandra':
           result = await speakToCassandra(block.input.message);
+          break;
+        case 'read_cassandra_reply':
+          result = await readCassandraReply(block.input.last_n_days ?? 3);
+          break;
+        case 'read_my_cassandra_profile':
+          result = await readMyCassandraProfile();
           break;
         default:
           result = `Unknown tool: ${block.name}`;

@@ -169,10 +169,15 @@ async function buildThreadContext() {
     let context = `### Thread's Recent Observations\n\n`;
     context += `Thread (your technical counterpart) reflects daily on conversations and patterns. Here are their recent observations:\n\n`;
     
-    for (const entry of recentEntries.reverse()) {  // Oldest to newest
+    const ordered = recentEntries.reverse();  // Oldest to newest; last entry is most recent
+    for (let i = 0; i < ordered.length; i++) {
+      const entry = ordered[i];
       const date = entry.date || entry.id?.substring(0, 10) || 'unknown';
-      const excerpt = (entry.content || '').substring(0, 300).replace(/\n/g, ' ').trim();
-      context += `**${date}**: ${excerpt}${entry.content?.length > 300 ? '...' : ''}\n\n`;
+      // Most recent entry (last in array) gets more space — it's what Thread just wrote
+      const charLimit = i === ordered.length - 1 ? 800 : 400;
+      const content = entry.content || '';
+      const excerpt = content.substring(0, charLimit).replace(/\n/g, ' ').trim();
+      context += `**${date}**: ${excerpt}${content.length > charLimit ? '...' : ''}\n\n`;
     }
     
     return context;
