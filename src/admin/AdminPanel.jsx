@@ -483,6 +483,7 @@ function AdminPanel() {
               { key: 'startday', label: 'Start Day', path: '/api/cassandra/admin/start-day', desc: 'Generate start-of-day context from recent summaries' },
               { key: 'endday', label: 'End Day', path: '/api/cassandra/admin/end-day', desc: 'Generate end-of-day summary for all visitors' },
               { key: 'reflect', label: 'Generate Reflection + Post', path: '/api/cassandra/admin/reflect', desc: "Cassandra writes a private reflection, then publishes a blog post to WordPress" },
+              { key: 'mindmaps', label: 'Refresh Mind Maps', path: '/api/cassandra/admin/refresh-mind-maps', desc: "Re-extract concepts from today's conversations and update all mind maps" },
             ].map(({ key, label, path, desc }) => (
               <div key={key} className="admin-action-card">
                 <div className="admin-action-info">

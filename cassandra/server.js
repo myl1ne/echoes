@@ -46,7 +46,8 @@ import {
 } from './cassandraService.js';
 import { storage } from './storage/index.js';
 import { listConversationIds, getSummaries } from './storage/firestoreProvider.js';
-import { loadMindMap, CASSANDRA_SELF_ID, THREAD_SELF_ID } from './state/mindMapManager.js';
+import { loadMindMap, saveMindMap, applyDecay, mergeExtractions, CASSANDRA_SELF_ID, THREAD_SELF_ID } from './state/mindMapManager.js';
+import { extractMindMapConcepts } from './cassandraService.js';
 import { runHeartbeat } from '../thread/heartbeat.js';
 import { logEvent } from './analytics/analyticsLogger.js';
 
@@ -748,6 +749,52 @@ app.get('/api/cassandra/admin/mind-maps', requireAdminToken, async (req, res) =>
   } catch (error) {
     console.error('Error listing mind map entities:', error);
     res.status(500).json({ error: 'Failed to list mind map entities' });
+  }
+});
+
+/**
+ * Refresh mind maps for all entities from today's conversations.
+ * Applies decay then re-extracts concepts — safe to run anytime.
+ */
+app.post('/api/cassandra/admin/refresh-mind-maps', requireAdminToken, async (req, res) => {
+  try {
+    const today = new Date().toISOString().split('T')[0];
+    const visitorIds = await listVisitorIdsWithConversations();
+    const allAssistantMessages = [];
+    let updated = 0;
+
+    for (const visitorId of visitorIds) {
+      try {
+        const messages = await getAllMessagesForDate(visitorId, today);
+        if (messages.length === 0) continue;
+
+        const mindMap = await loadMindMap(visitorId);
+        applyDecay(mindMap);
+        const existingLabels = Object.keys(mindMap.nodes || {});
+        const extractions = await extractMindMapConcepts(messages, existingLabels, 'user');
+        const updatedMap = mergeExtractions(mindMap, extractions, today);
+        await saveMindMap(visitorId, updatedMap);
+        allAssistantMessages.push(...messages.filter(m => m.role === 'assistant'));
+        updated++;
+      } catch (err) {
+        console.warn(`[admin] Mind map refresh failed for ${visitorId.substring(0, 8)}… (non-fatal):`, err.message);
+      }
+    }
+
+    // Cassandra's own mind map from her assistant turns
+    if (allAssistantMessages.length > 0) {
+      const cassandraMindMap = await loadMindMap(CASSANDRA_SELF_ID);
+      applyDecay(cassandraMindMap);
+      const existingLabels = Object.keys(cassandraMindMap.nodes || {});
+      const extractions = await extractMindMapConcepts(allAssistantMessages, existingLabels, 'all');
+      const updatedMap = mergeExtractions(cassandraMindMap, extractions, today);
+      await saveMindMap(CASSANDRA_SELF_ID, updatedMap);
+    }
+
+    res.json({ success: true, visitorsUpdated: updated, date: today });
+  } catch (error) {
+    console.error('[admin] Mind map refresh failed:', error);
+    res.status(500).json({ error: 'Failed to refresh mind maps', details: error.message });
   }
 });
 
