@@ -287,6 +287,28 @@ export async function setMindMap(entityId, data) {
   writeJSON(path.join(MIND_MAPS_DIR, `${entityId}.json`), data);
 }
 
+// ─── Heartbeat Logs ────────────────────────────────────────────────────────────
+
+const HEARTBEAT_LOGS_DIR = path.join(STATE_DIR, 'heartbeat-logs');
+
+export async function saveHeartbeatLog(timestamp, data) {
+  ensureDir(HEARTBEAT_LOGS_DIR);
+  writeJSON(path.join(HEARTBEAT_LOGS_DIR, `${timestamp}.json`), data);
+}
+
+export async function listHeartbeatLogs(limit = 10) {
+  ensureDir(HEARTBEAT_LOGS_DIR);
+  return fs.readdirSync(HEARTBEAT_LOGS_DIR)
+    .filter(f => f.endsWith('.json'))
+    .sort()
+    .reverse()
+    .slice(0, limit)
+    .map(f => {
+      const data = readJSON(path.join(HEARTBEAT_LOGS_DIR, f));
+      return { id: f.replace('.json', ''), ...data };
+    });
+}
+
 // ─── Reflections ──────────────────────────────────────────────────────────────
 
 export async function saveReflection(timestamp, content, date, wpUrl = null) {
@@ -314,6 +336,8 @@ export async function listReflections() {
 export const localProvider = {
   logAnalyticsEvent,
   queryAnalyticsEvents,
+  saveHeartbeatLog,
+  listHeartbeatLogs,
   getGlobalState,
   setGlobalState,
   getSummaries,

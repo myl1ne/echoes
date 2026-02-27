@@ -209,6 +209,20 @@ export async function setMindMap(entityId, data) {
   await getDb().collection('cassandra_mind_maps').doc(entityId).set(data);
 }
 
+// ─── Heartbeat Logs ────────────────────────────────────────────────────────────
+
+export async function saveHeartbeatLog(timestamp, data) {
+  await getDb().collection('thread_heartbeat_logs').doc(timestamp).set(data);
+}
+
+export async function listHeartbeatLogs(limit = 10) {
+  const snapshot = await getDb().collection('thread_heartbeat_logs')
+    .orderBy('startedAt', 'desc')
+    .limit(limit)
+    .get();
+  return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+}
+
 // ─── Reflections ──────────────────────────────────────────────────────────────
 
 export async function saveReflection(timestamp, content, date, wpUrl = null) {
@@ -236,6 +250,8 @@ export async function listReflections() {
 export const firestoreProvider = {
   logAnalyticsEvent,
   queryAnalyticsEvents,
+  saveHeartbeatLog,
+  listHeartbeatLogs,
   getGlobalState,
   setGlobalState,
   getSummaries,

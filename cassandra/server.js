@@ -769,6 +769,20 @@ app.post('/api/thread/heartbeat', requireAdminToken, async (req, res) => {
 });
 
 /**
+ * List Thread's heartbeat logs (admin endpoint)
+ */
+app.get('/api/thread/heartbeat-logs', requireAdminToken, async (req, res) => {
+  try {
+    const limit = Math.min(parseInt(req.query.limit) || 10, 50);
+    const logs = await storage.listHeartbeatLogs(limit);
+    res.json({ logs });
+  } catch (error) {
+    console.error('[thread] Error listing heartbeat logs:', error);
+    res.status(500).json({ error: 'Failed to list heartbeat logs' });
+  }
+});
+
+/**
  * List Thread's journal entries (admin endpoint)
  */
 app.get('/api/thread/journal', requireAdminToken, async (req, res) => {

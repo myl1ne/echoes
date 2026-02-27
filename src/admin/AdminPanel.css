@@ -831,3 +831,184 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+/* ── Heartbeat Tab ── */
+
+.admin-heartbeat {
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  overflow-y: auto;
+}
+
+.admin-heartbeat-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.admin-heartbeat-header h2 {
+  margin: 0;
+  font-size: 1rem;
+  color: var(--admin-accent-hi);
+  font-weight: normal;
+}
+
+.admin-heartbeat-trigger {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.admin-heartbeat-run-result {
+  font-size: 0.78rem;
+  padding: 0.3rem 0.6rem;
+  border-radius: 2px;
+}
+
+.admin-heartbeat-run-result.ok {
+  background: rgba(74, 124, 89, 0.15);
+  color: #6ab07a;
+  border: 1px solid rgba(74, 124, 89, 0.3);
+}
+
+.admin-heartbeat-run-result.err {
+  background: rgba(124, 74, 74, 0.15);
+  color: #c07070;
+  border: 1px solid rgba(124, 74, 74, 0.3);
+}
+
+.admin-heartbeat-card {
+  border: 1px solid var(--admin-border);
+  background: var(--admin-surface);
+  font-family: var(--admin-mono);
+  font-size: 0.82rem;
+}
+
+.admin-heartbeat-card-header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex: 1;
+  flex-wrap: wrap;
+}
+
+.admin-heartbeat-date {
+  color: var(--admin-accent-hi);
+}
+
+.admin-heartbeat-meta {
+  display: flex;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+
+.admin-heartbeat-badge {
+  font-size: 0.7rem;
+  padding: 0.1rem 0.4rem;
+  border: 1px solid var(--admin-border-light);
+  color: var(--admin-text-dim);
+  border-radius: 2px;
+}
+
+.admin-heartbeat-badge.journal {
+  border-color: rgba(240, 192, 96, 0.4);
+  color: #c8a050;
+}
+
+.admin-heartbeat-badge.draft {
+  border-color: rgba(126, 184, 212, 0.4);
+  color: #7eb8d4;
+}
+
+.admin-heartbeat-badge.note {
+  border-color: rgba(167, 139, 250, 0.4);
+  color: #a78bfa;
+}
+
+.admin-heartbeat-badge.sync {
+  border-color: rgba(96, 192, 128, 0.4);
+  color: #60c080;
+}
+
+.admin-heartbeat-card-body {
+  padding: 0.75rem 1rem 1rem;
+  border-top: 1px solid var(--admin-border);
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.admin-heartbeat-tools {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.admin-heartbeat-tool-chip {
+  font-size: 0.7rem;
+  padding: 0.1rem 0.45rem;
+  border: 1px solid rgba(240, 160, 96, 0.35);
+  color: #c8904a;
+  border-radius: 2px;
+}
+
+.admin-heartbeat-final-summary {
+  border-left: 2px solid var(--admin-border-light);
+  padding-left: 0.75rem;
+}
+
+.admin-heartbeat-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.admin-heartbeat-step {
+  display: grid;
+  grid-template-columns: 1.2rem 7rem 2rem 1fr auto;
+  align-items: baseline;
+  gap: 0.4rem;
+  padding: 0.2rem 0;
+  border-bottom: 1px solid var(--admin-border);
+  font-size: 0.75rem;
+}
+
+.admin-heartbeat-step:last-child {
+  border-bottom: none;
+}
+
+.admin-heartbeat-step-icon {
+  color: var(--step-color, var(--admin-accent));
+  text-align: center;
+}
+
+.admin-heartbeat-step-type {
+  color: var(--step-color, var(--admin-accent));
+  font-size: 0.7rem;
+}
+
+.admin-heartbeat-step-detail {
+  color: var(--admin-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.admin-heartbeat-step-detail strong {
+  color: var(--admin-accent-hi);
+}
+
+.admin-heartbeat-step-error {
+  color: #c07070;
+}
+
+.admin-heartbeat-step-time {
+  font-size: 0.65rem;
+  text-align: right;
+  white-space: nowrap;
+}

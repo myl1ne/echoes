@@ -132,6 +132,10 @@ export async function runHeartbeat() {
   const systemPrompt = buildThreadSystemPrompt();
   const startedAt = new Date().toISOString();
 
+  // Structured log accumulated throughout the run
+  const steps = [];
+  const addStep = (type, data) => steps.push({ type, timestamp: new Date().toISOString(), ...data });
+
   console.log(`[thread] Heartbeat started at ${startedAt}`);
 
   // Step 1: ensure Cassandra's day summaries are current before the agentic loop
@@ -139,6 +143,7 @@ export async function runHeartbeat() {
     console.error('[thread] Summary sync failed (non-fatal):', err.message);
     return { summarized: null };
   });
+  addStep('sync_summaries', { summarized });
 
   // Step 2: update Cassandra's global state for today.
   // start-day is never called automatically — this is the only place it happens.
@@ -155,12 +160,14 @@ export async function runHeartbeat() {
 
       if (!isInitialState && !isStale) {
         console.log('[thread] Cassandra state already current — skipping.');
+        addStep('state_update', { skipped: true, reason: 'already current' });
         return;
       }
 
       const recentSummaries = await getRecentSummaries(3);
       if (recentSummaries.length === 0) {
         console.log('[thread] No summaries yet — skipping state update.');
+        addStep('state_update', { skipped: true, reason: 'no summaries' });
         return;
       }
 
@@ -168,8 +175,10 @@ export async function runHeartbeat() {
       const newState = await generateStartOfDaySummary(recentSummaries);
       await updateStateForNewDay(newState);
       console.log('[thread] Cassandra global state updated.');
+      addStep('state_update', { skipped: false });
     } catch (err) {
       console.error('[thread] State update failed (non-fatal):', err.message);
+      addStep('state_update', { error: err.message });
     }
   })();
 
@@ -215,8 +224,10 @@ export async function runHeartbeat() {
 
       await storage.saveReflection(timestamp, reflection, today, wpUrl);
       console.log('[thread] Cassandra reflection saved.');
+      addStep('reflection', { generated: true, wordCount: reflection.split(/\s+/).length, wpUrl });
     } catch (err) {
       console.error('[thread] Reflection generation failed (non-fatal):', err.message);
+      addStep('reflection', { error: err.message });
     }
   })();
 
@@ -237,6 +248,7 @@ export async function runHeartbeat() {
 
   for (let i = 0; i < MAX_TOOL_ITERATIONS; i++) {
     totalIterations++;
+    addStep('iteration_start', { iteration: totalIterations });
 
     const response = await client.messages.create({
       model: MODEL,
@@ -248,21 +260,49 @@ export async function runHeartbeat() {
     });
 
     const textBlock = response.content.find(b => b.type === 'text');
-    if (textBlock) lastTextResponse = textBlock.text;
+    if (textBlock) {
+      lastTextResponse = textBlock.text;
+      if (textBlock.text.trim()) {
+        addStep('text', { iteration: totalIterations, preview: textBlock.text.substring(0, 300) });
+      }
+    }
 
     if (response.stop_reason === 'end_turn') {
       console.log(`[thread] Heartbeat complete after ${totalIterations} iteration(s).`);
+      addStep('complete', { stopReason: 'end_turn', iteration: totalIterations });
       break;
     }
 
     if (response.stop_reason === 'tool_use') {
-      response.content.filter(b => b.type === 'tool_use').forEach(b => {
+      const toolBlocks = response.content.filter(b => b.type === 'tool_use');
+      toolBlocks.forEach(b => {
         toolsUsed.add(b.name);
         if (b.name === 'write_journal_entry') journalWritten = true;
         if (b.name === 'write_fragment_draft') draftsWritten++;
         if (b.name === 'leave_note') notesLeft++;
+        // Log tool call with a short summary of the input (no full content to keep log small)
+        const inputPreview = {};
+        if (b.input?.title) inputPreview.title = b.input.title;
+        if (b.input?.date) inputPreview.date = b.input.date;
+        if (b.input?.query) inputPreview.query = String(b.input.query).substring(0, 100);
+        if (b.input?.message) inputPreview.message = String(b.input.message).substring(0, 150);
+        if (b.input?.subject) inputPreview.subject = b.input.subject;
+        if (b.input?.recipient) inputPreview.recipient = b.input.recipient;
+        if (b.input?.urgency) inputPreview.urgency = b.input.urgency;
+        addStep('tool_call', { iteration: totalIterations, tool: b.name, input: inputPreview });
       });
       const toolResults = await executeThreadToolCalls(response.content);
+      // Log result summaries (truncated)
+      toolBlocks.forEach((b, idx) => {
+        const result = Array.isArray(toolResults) ? toolResults[idx] : null;
+        const resultContent = result?.content?.[0]?.text || '';
+        addStep('tool_result', {
+          iteration: totalIterations,
+          tool: b.name,
+          success: !resultContent.startsWith('Error'),
+          preview: resultContent.substring(0, 200),
+        });
+      });
       currentMessages = [
         ...currentMessages,
         { role: 'assistant', content: response.content },
@@ -273,6 +313,7 @@ export async function runHeartbeat() {
 
     // Unexpected stop reason
     console.warn(`[thread] Unexpected stop_reason: ${response.stop_reason}`);
+    addStep('complete', { stopReason: response.stop_reason, iteration: totalIterations });
     break;
   }
 
@@ -280,14 +321,32 @@ export async function runHeartbeat() {
   console.log(`[thread] Summary: ${summary.substring(0, 200)}...`);
 
   const completedAt = new Date().toISOString();
+  const durationMs = new Date(completedAt) - new Date(startedAt);
+
   await logEvent('heartbeat_complete', {
     iterations: totalIterations,
-    durationMs: new Date(completedAt) - new Date(startedAt),
+    durationMs,
     toolsUsed: [...toolsUsed],
     journalWritten,
     draftsWritten,
     notesLeft,
   });
+
+  // Save full structured log
+  const logTimestamp = startedAt.replace(/[:.]/g, '-').slice(0, 19).replace('T', '_');
+  await storage.saveHeartbeatLog(logTimestamp, {
+    startedAt,
+    completedAt,
+    durationMs,
+    iterations: totalIterations,
+    toolsUsed: [...toolsUsed],
+    journalWritten,
+    draftsWritten,
+    notesLeft,
+    summarized,
+    finalSummary: summary,
+    steps,
+  }).catch(err => console.warn('[thread] Failed to save heartbeat log (non-fatal):', err.message));
 
   return {
     success: true,

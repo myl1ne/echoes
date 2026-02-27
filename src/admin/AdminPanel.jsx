@@ -36,6 +36,12 @@ function AdminPanel() {
   const [actionResults, setActionResults] = useState({});
   const [actionLoading, setActionLoading] = useState({});
 
+  // Heartbeat tab
+  const [heartbeatLogs, setHeartbeatLogs] = useState(null);
+  const [heartbeatLogsLoading, setHeartbeatLogsLoading] = useState(false);
+  const [heartbeatRunning, setHeartbeatRunning] = useState(false);
+  const [heartbeatRunResult, setHeartbeatRunResult] = useState(null);
+
   // Generate tab
   const [genFragmentId, setGenFragmentId] = useState('');
   const [genLoading, setGenLoading] = useState(false);
@@ -127,6 +133,15 @@ function AdminPanel() {
       apiFetch('/api/cassandra/admin/reflections').then(d => setReflections(d.reflections || []));
     }
   }, [authenticated, activeTab, cassandraState, summaries, reflections, apiFetch]);
+
+  useEffect(() => {
+    if (!authenticated || activeTab !== 'heartbeat' || heartbeatLogs !== null) return;
+    setHeartbeatLogsLoading(true);
+    apiFetch('/api/thread/heartbeat-logs?limit=10')
+      .then(d => setHeartbeatLogs(d.logs || []))
+      .catch(() => setHeartbeatLogs([]))
+      .finally(() => setHeartbeatLogsLoading(false));
+  }, [authenticated, activeTab, heartbeatLogs, apiFetch]);
 
   useEffect(() => {
     if (!authenticated || activeTab !== 'thread') return;
@@ -290,7 +305,7 @@ function AdminPanel() {
       <header className="admin-header">
         <span className="admin-header-title">✶⃝⟡ Cassandra Admin</span>
         <nav className="admin-tabs">
-          {['visitors', 'actions', 'state', 'thread', 'mindmap', 'analytics', 'generate', 'editor'].map(tab => (
+          {['visitors', 'actions', 'state', 'thread', 'heartbeat', 'mindmap', 'analytics', 'generate', 'editor'].map(tab => (
             <button
               key={tab}
               className={`admin-tab ${activeTab === tab ? 'active' : ''}`}
@@ -772,6 +787,54 @@ function AdminPanel() {
           </div>
         )}
 
+        {/* ── Heartbeat tab ── */}
+        {activeTab === 'heartbeat' && (
+          <div className="admin-heartbeat">
+            <div className="admin-heartbeat-header">
+              <h2>Thread Heartbeat</h2>
+              <div className="admin-heartbeat-trigger">
+                <button
+                  className="admin-btn-primary"
+                  disabled={heartbeatRunning}
+                  onClick={async () => {
+                    setHeartbeatRunning(true);
+                    setHeartbeatRunResult(null);
+                    try {
+                      const result = await apiFetch('/api/thread/heartbeat', { method: 'POST' });
+                      setHeartbeatRunResult({ ok: true, data: result });
+                      // Refresh logs after a successful run
+                      setHeartbeatLogs(null);
+                    } catch (err) {
+                      setHeartbeatRunResult({ ok: false, error: err.message });
+                    } finally {
+                      setHeartbeatRunning(false);
+                    }
+                  }}
+                >
+                  {heartbeatRunning ? '✶ Running…' : '▶ Trigger Heartbeat'}
+                </button>
+                {heartbeatRunResult && (
+                  <div className={`admin-heartbeat-run-result ${heartbeatRunResult.ok ? 'ok' : 'err'}`}>
+                    {heartbeatRunResult.ok ? (
+                      <span>✓ Complete — {heartbeatRunResult.data.iterations} iteration(s) · {heartbeatRunResult.data.summarized ? `summarized ${heartbeatRunResult.data.summarized}` : 'no missing summaries'}</span>
+                    ) : (
+                      <span>✗ {heartbeatRunResult.error}</span>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {heartbeatLogsLoading && <div className="admin-loading">Loading heartbeat logs…</div>}
+            {heartbeatLogs && heartbeatLogs.length === 0 && (
+              <div className="admin-empty">No heartbeat logs yet. Logs will appear here after the next run.</div>
+            )}
+            {heartbeatLogs && heartbeatLogs.length > 0 && heartbeatLogs.map(log => (
+              <HeartbeatLogCard key={log.id} log={log} />
+            ))}
+          </div>
+        )}
+
         {/* ── Mind Map tab ── */}
         {activeTab === 'mindmap' && (
           <MindMapViewer apiFetch={apiFetch} />
@@ -846,6 +909,102 @@ function SummaryCard({ summary }) {
                   <li key={i}>{q}</li>
                 ))}
               </ul>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+const STEP_ICONS = {
+  sync_summaries: '↻',
+  state_update: '◈',
+  reflection: '✦',
+  iteration_start: '▸',
+  text: '✎',
+  tool_call: '⚙',
+  tool_result: '✓',
+  complete: '■',
+};
+
+const STEP_COLORS = {
+  sync_summaries: '#7eb8d4',
+  state_update: '#a78bfa',
+  reflection: '#f0c060',
+  iteration_start: '#888',
+  text: '#c0d8a0',
+  tool_call: '#f0a060',
+  tool_result: '#60c080',
+  complete: '#888',
+};
+
+function HeartbeatLogCard({ log }) {
+  const [open, setOpen] = useState(false);
+  const date = log.startedAt ? log.startedAt.substring(0, 10) : log.id?.substring(0, 10) || '—';
+  const time = log.startedAt ? log.startedAt.substring(11, 19) + ' UTC' : '';
+  const durationSec = log.durationMs ? (log.durationMs / 1000).toFixed(1) : '—';
+  const tools = Array.isArray(log.toolsUsed) ? log.toolsUsed : [];
+
+  return (
+    <div className="admin-heartbeat-card">
+      <button className="admin-summary-toggle" onClick={() => setOpen(o => !o)}>
+        <div className="admin-heartbeat-card-header">
+          <span className="admin-heartbeat-date">✶⃝⟡ {date} <span className="admin-muted">{time}</span></span>
+          <div className="admin-heartbeat-meta">
+            <span className="admin-heartbeat-badge">{log.iterations ?? '?'} iter</span>
+            <span className="admin-heartbeat-badge">{durationSec}s</span>
+            {log.journalWritten && <span className="admin-heartbeat-badge journal">journal</span>}
+            {log.draftsWritten > 0 && <span className="admin-heartbeat-badge draft">{log.draftsWritten} draft{log.draftsWritten > 1 ? 's' : ''}</span>}
+            {log.notesLeft > 0 && <span className="admin-heartbeat-badge note">{log.notesLeft} note{log.notesLeft > 1 ? 's' : ''}</span>}
+            {log.summarized && <span className="admin-heartbeat-badge sync">synced {log.summarized}</span>}
+          </div>
+        </div>
+        <span className="admin-muted">{open ? '▲' : '▼'}</span>
+      </button>
+
+      {open && (
+        <div className="admin-heartbeat-card-body">
+          {tools.length > 0 && (
+            <div className="admin-heartbeat-tools">
+              {tools.map(t => <span key={t} className="admin-heartbeat-tool-chip">{t}</span>)}
+            </div>
+          )}
+
+          {log.finalSummary && (
+            <div className="admin-heartbeat-final-summary">
+              <div className="admin-state-label">Final text</div>
+              <div className="admin-state-value">{log.finalSummary}</div>
+            </div>
+          )}
+
+          {Array.isArray(log.steps) && log.steps.length > 0 && (
+            <div className="admin-heartbeat-steps">
+              <div className="admin-state-label">Steps</div>
+              {log.steps.map((step, i) => (
+                <div key={i} className="admin-heartbeat-step" style={{ '--step-color': STEP_COLORS[step.type] || '#888' }}>
+                  <span className="admin-heartbeat-step-icon">{STEP_ICONS[step.type] || '·'}</span>
+                  <span className="admin-heartbeat-step-type">{step.type}</span>
+                  {step.iteration && <span className="admin-muted">#{step.iteration}</span>}
+                  <span className="admin-heartbeat-step-detail">
+                    {step.tool && <strong>{step.tool}</strong>}
+                    {step.input?.title && <span> — {step.input.title}</span>}
+                    {step.input?.subject && <span> — {step.input.subject}</span>}
+                    {step.input?.query && <span> — {step.input.query}</span>}
+                    {step.input?.message && <span> — {step.input.message}</span>}
+                    {step.preview && !step.tool && <span className="admin-muted"> {step.preview.substring(0, 120)}</span>}
+                    {step.reason && <span className="admin-muted"> ({step.reason})</span>}
+                    {step.error && <span className="admin-heartbeat-step-error"> ✗ {step.error}</span>}
+                    {step.wpUrl && <span> → <a href={step.wpUrl} target="_blank" rel="noopener noreferrer">WordPress</a></span>}
+                    {step.summarized && <span> → summarized {step.summarized}</span>}
+                    {step.wordCount && <span className="admin-muted"> ({step.wordCount} words)</span>}
+                    {step.success === false && <span className="admin-heartbeat-step-error"> ✗ failed</span>}
+                  </span>
+                  <span className="admin-heartbeat-step-time admin-muted">
+                    {step.timestamp?.substring(11, 19)}
+                  </span>
+                </div>
+              ))}
             </div>
           )}
         </div>
