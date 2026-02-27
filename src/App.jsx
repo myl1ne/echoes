@@ -58,24 +58,63 @@ function App() {
     }
   }, [showCassandra]);
 
-  // Gradual text reveal at ~155 wpm (slightly below average reading speed)
+  // Gradual text reveal at ~155 wpm.
+  // Scroll toward the shadow to accelerate (organic, up to ~5×).
+  // Tap/click the text to reveal instantly.
   useEffect(() => {
     if (!nav.currentFragment || !contentRef.current) return;
     const el = contentRef.current;
     el.style.setProperty('--reveal', '0%');
 
     const wordCount = nav.currentFragment.content.split(/\s+/).length;
-    const totalMs = (wordCount / 155) * 60 * 1000;
+    const basePctPerMs = 115 / ((wordCount / 155) * 60 * 1000);
 
+    let currentPct = 0;
+    let speedMultiplier = 1;
+    let lastNow = performance.now();
     let rafId;
-    const start = performance.now();
+
     const tick = (now) => {
-      const pct = Math.min(115, ((now - start) / totalMs) * 115);
-      el.style.setProperty('--reveal', `${pct.toFixed(2)}%`);
-      if (pct < 115) rafId = requestAnimationFrame(tick);
+      const delta = now - lastNow;
+      lastNow = now;
+      currentPct = Math.min(115, currentPct + basePctPerMs * delta * speedMultiplier);
+      el.style.setProperty('--reveal', `${currentPct.toFixed(2)}%`);
+      if (currentPct < 115) rafId = requestAnimationFrame(tick);
     };
+
+    // Scroll toward the shadow → organic speed ramp.
+    // Shadow viewport-y: rect.top + el.clientHeight * (currentPct / 100)
+    // Boost starts 250px before shadow enters viewport, peaks at ~5× when shadow is 200px inside.
+    const handleScroll = () => {
+      if (currentPct >= 115) return;
+      const rect = el.getBoundingClientRect();
+      const shadowY = rect.top + el.clientHeight * (currentPct / 100);
+      const dist = window.innerHeight - shadowY; // positive = shadow inside viewport
+      if (dist > -250) {
+        speedMultiplier = 1 + Math.min(4, Math.max(0, dist + 250) / 112);
+      } else {
+        speedMultiplier = 1;
+      }
+    };
+
+    // Tap / click → instant complete
+    const handleClick = (e) => {
+      if (e.target.closest('a, button')) return;
+      if (currentPct >= 115) return;
+      cancelAnimationFrame(rafId);
+      currentPct = 115;
+      el.style.setProperty('--reveal', '115%');
+    };
+
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    el.addEventListener('click', handleClick);
     rafId = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(rafId);
+
+    return () => {
+      cancelAnimationFrame(rafId);
+      window.removeEventListener('scroll', handleScroll);
+      el.removeEventListener('click', handleClick);
+    };
   }, [nav.currentFragment?.id]);
 
   // Keyboard shortcuts
