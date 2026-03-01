@@ -512,18 +512,24 @@ export async function generateReflection(recentMessages, state) {
     conversationContext += `\nQuestions you haven't resolved: ${state.ongoingQuestions.join(' / ')}\n`;
   }
 
+  const userContent = `${conversationContext}\n\n${REFLECTION_PROMPT}`;
+
   const response = await client.messages.create({
     model,
     system: await getSystemPrompt(),
-    messages: [{
-      role: 'user',
-      content: `${conversationContext}\n\n${REFLECTION_PROMPT}`,
-    }],
+    messages: [{ role: 'user', content: userContent }],
     temperature: 0.9,
     max_tokens: 1500,
   });
 
-  return response.content[0].text;
+  const text = response.content[0].text;
+  return {
+    text,
+    messages: [
+      { role: 'user', content: userContent },
+      { role: 'assistant', content: text },
+    ],
+  };
 }
 
 /**
@@ -554,19 +560,23 @@ export async function generateWordPressPost(privateReflection) {
 
 /**
  * Ask Cassandra whether she wants to publish today's reflection publicly.
+ * Extends the same conversation that produced the reflection so the decision
+ * is made from within the same semantic context as the writing.
+ * @param {Array<{role: string, content: string}>} reflectionMessages - the [user, assistant] pair from generateReflection
  * Returns { publish: boolean, reason: string }.
  * Defaults to not publishing on parse failure.
  */
-export async function decideToPublish(reflection) {
+export async function decideToPublish(reflectionMessages) {
   const client = getAnthropicClient();
   const model = getChatModel();
-
-  const prompt = PUBLISH_DECISION_PROMPT.replace('{REFLECTION}', reflection);
 
   const response = await client.messages.create({
     model,
     system: await getSystemPrompt(),
-    messages: [{ role: 'user', content: prompt }],
+    messages: [
+      ...reflectionMessages,
+      { role: 'user', content: PUBLISH_DECISION_PROMPT },
+    ],
     temperature: 0.7,
     max_tokens: 200,
   });

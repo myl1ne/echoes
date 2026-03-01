@@ -192,13 +192,14 @@ export async function runHeartbeat() {
         allMessages.push(...await getAllMessagesForDate(id, today));
       }
       const state = await loadState();
-      const reflection = await generateReflection(allMessages, state);
+      const { text: reflection, messages: reflectionMessages } = await generateReflection(allMessages, state);
       const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19).replace('T', '_');
 
-      // Ask Cassandra whether she wants to publish today
+      // Ask Cassandra whether she wants to publish today — extending the same
+      // conversation context so the decision is made from within the same semantic thread
       let publishDecision = { publish: false, reason: '' };
       try {
-        publishDecision = await decideToPublish(reflection);
+        publishDecision = await decideToPublish(reflectionMessages);
         console.log(`[thread] Cassandra publish decision: ${publishDecision.publish} — ${publishDecision.reason}`);
       } catch (decideErr) {
         console.warn('[thread] Publish decision failed (defaulting to no publish):', decideErr.message);
