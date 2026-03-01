@@ -42,7 +42,8 @@ import {
   generateEndOfDaySummary,
   generateVisitorSummary,
   generateReflection,
-  generateWordPressPost
+  generateWordPressPost,
+  decideToPublish,
 } from './cassandraService.js';
 import { storage } from './storage/index.js';
 import { listConversationIds, getSummaries } from './storage/firestoreProvider.js';
@@ -580,11 +581,20 @@ app.post('/api/cassandra/admin/reflect', requireAdminToken, async (req, res) => 
 
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-').split('T').join('-').substring(0, 19);
 
-    // Publish a public blog post to WordPress if configured
+    // Ask Cassandra whether she wants to publish today
+    let publishDecision = { publish: false, reason: '' };
+    try {
+      publishDecision = await decideToPublish(reflection);
+      console.log(`✨ Cassandra publish decision: ${publishDecision.publish} — ${publishDecision.reason}`);
+    } catch (decideErr) {
+      console.warn('Publish decision failed (defaulting to no publish):', decideErr.message);
+    }
+
+    // Publish a public blog post to WordPress only if Cassandra chose to
     let wpUrl = null;
     const wpToken = process.env.WORDPRESS_TOKEN;
     const wpSite = process.env.WORDPRESS_SITE || 'ghostlesslife.wordpress.com';
-    if (wpToken) {
+    if (publishDecision.publish && wpToken) {
       try {
         const { title, content } = await generateWordPressPost(reflection);
         const wpRes = await fetch(
@@ -605,13 +615,15 @@ app.post('/api/cassandra/admin/reflect', requireAdminToken, async (req, res) => 
       } catch (wpErr) {
         console.warn('WordPress publish error (non-fatal):', wpErr.message);
       }
+    } else if (!publishDecision.publish) {
+      console.log('Cassandra chose not to publish today.');
     }
 
     await storage.saveReflection(timestamp, reflection, today, wpUrl);
     console.log(`\n✨ Cassandra's reflection saved: ${timestamp}`);
 
-    logEvent('admin_action', { action: 'reflect', wpUrl });
-    res.json({ success: true, filename: `${timestamp}.md`, reflection, wpUrl });
+    logEvent('admin_action', { action: 'reflect', wpUrl, published: publishDecision.publish });
+    res.json({ success: true, filename: `${timestamp}.md`, reflection, wpUrl, published: publishDecision.publish, publishReason: publishDecision.reason });
   } catch (error) {
     console.error('Error generating reflection:', error);
     res.status(500).json({ error: 'Failed to generate reflection', details: error.message });

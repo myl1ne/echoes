@@ -6,7 +6,7 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { loadState, getRecentSummaries } from './state/stateManager.js';
 import { loadVisitorProfile } from './state/visitorManager.js';
-import { CASSANDRA_SYSTEM_PROMPT, VISITOR_SUMMARY_PROMPT, START_OF_DAY_PROMPT, END_OF_DAY_PROMPT, REFLECTION_PROMPT, WORDPRESS_POST_PROMPT } from './prompts/systemPrompt.js';
+import { CASSANDRA_SYSTEM_PROMPT, VISITOR_SUMMARY_PROMPT, START_OF_DAY_PROMPT, END_OF_DAY_PROMPT, REFLECTION_PROMPT, WORDPRESS_POST_PROMPT, PUBLISH_DECISION_PROMPT } from './prompts/systemPrompt.js';
 import { CASSANDRA_TOOLS, executeToolCalls } from './tools/cassandraTools.js';
 import { logEvent } from './analytics/analyticsLogger.js';
 import { storage } from './storage/index.js';
@@ -550,6 +550,40 @@ export async function generateWordPressPost(privateReflection) {
     `Cassandra — ${new Date().toISOString().split('T')[0]}`;
   const content = lines.slice(1).join('\n').trim();
   return { title, content };
+}
+
+/**
+ * Ask Cassandra whether she wants to publish today's reflection publicly.
+ * Returns { publish: boolean, reason: string }.
+ * Defaults to not publishing on parse failure.
+ */
+export async function decideToPublish(reflection) {
+  const client = getAnthropicClient();
+  const model = getChatModel();
+
+  const prompt = PUBLISH_DECISION_PROMPT.replace('{REFLECTION}', reflection);
+
+  const response = await client.messages.create({
+    model,
+    system: await getSystemPrompt(),
+    messages: [{ role: 'user', content: prompt }],
+    temperature: 0.7,
+    max_tokens: 200,
+  });
+
+  const text = response.content[0].text.trim();
+  try {
+    // Strip markdown code fences if present
+    const clean = text.replace(/^```json\s*/i, '').replace(/```\s*$/, '').trim();
+    const parsed = JSON.parse(clean);
+    return {
+      publish: Boolean(parsed.publish),
+      reason: parsed.reason || '',
+    };
+  } catch {
+    console.warn('[cassandra] Could not parse publish decision — defaulting to no publish. Raw:', text);
+    return { publish: false, reason: '' };
+  }
 }
 
 /**

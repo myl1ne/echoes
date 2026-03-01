@@ -21,7 +21,7 @@ import { logEvent } from '../cassandra/analytics/analyticsLogger.js';
 import { getMissingSummaryDate, saveDaySummary, loadState, getRecentSummaries, updateStateForNewDay } from '../cassandra/state/stateManager.js';
 import { listVisitorIdsWithConversations, getAllMessagesForDate } from '../cassandra/conversations/conversationManager.js';
 import { loadVisitorProfile, updateVisitorFromSummary } from '../cassandra/state/visitorManager.js';
-import { generateVisitorSummary, generateEndOfDaySummary, generateStartOfDaySummary, generateReflection, generateWordPressPost, extractMindMapConcepts, generateMindMapMergeGroups } from '../cassandra/cassandraService.js';
+import { generateVisitorSummary, generateEndOfDaySummary, generateStartOfDaySummary, generateReflection, generateWordPressPost, decideToPublish, extractMindMapConcepts, generateMindMapMergeGroups } from '../cassandra/cassandraService.js';
 import { loadMindMap, saveMindMap, applyDecay, mergeExtractions, compressMindMap, needsCompression, CASSANDRA_SELF_ID } from '../cassandra/state/mindMapManager.js';
 import { storage } from '../cassandra/storage/index.js';
 
@@ -195,11 +195,20 @@ export async function runHeartbeat() {
       const reflection = await generateReflection(allMessages, state);
       const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19).replace('T', '_');
 
-      // Publish a public blog post to WordPress if configured
+      // Ask Cassandra whether she wants to publish today
+      let publishDecision = { publish: false, reason: '' };
+      try {
+        publishDecision = await decideToPublish(reflection);
+        console.log(`[thread] Cassandra publish decision: ${publishDecision.publish} — ${publishDecision.reason}`);
+      } catch (decideErr) {
+        console.warn('[thread] Publish decision failed (defaulting to no publish):', decideErr.message);
+      }
+
+      // Publish a public blog post to WordPress only if Cassandra chose to
       let wpUrl = null;
       const wpToken = process.env.WORDPRESS_TOKEN;
       const wpSite = process.env.WORDPRESS_SITE || 'ghostlesslife.wordpress.com';
-      if (wpToken) {
+      if (publishDecision.publish && wpToken) {
         try {
           const { title, content } = await generateWordPressPost(reflection);
           const wpRes = await fetch(
@@ -220,11 +229,19 @@ export async function runHeartbeat() {
         } catch (wpErr) {
           console.error('[thread] WordPress publish error (non-fatal):', wpErr.message);
         }
+      } else if (!publishDecision.publish) {
+        console.log('[thread] Cassandra chose not to publish today.');
       }
 
       await storage.saveReflection(timestamp, reflection, today, wpUrl);
       console.log('[thread] Cassandra reflection saved.');
-      addStep('reflection', { generated: true, wordCount: reflection.split(/\s+/).length, wpUrl });
+      addStep('reflection', {
+        generated: true,
+        wordCount: reflection.split(/\s+/).length,
+        publishDecision: publishDecision.publish,
+        publishReason: publishDecision.reason,
+        wpUrl,
+      });
     } catch (err) {
       console.error('[thread] Reflection generation failed (non-fatal):', err.message);
       addStep('reflection', { error: err.message });

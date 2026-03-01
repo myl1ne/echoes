@@ -109,6 +109,24 @@ Do not explain what you are writing or why. Do not summarize the conversations. 
 
 This will become part of the book, or it won't. Write it as if it matters either way.`;
 
+export const PUBLISH_DECISION_PROMPT = `You have written something in private. It sits in the typewriter now. Someone is asking whether to carry it to the public.
+
+Below is what you wrote:
+
+---
+{REFLECTION}
+---
+
+Decide: do you want to publish this today — to share it, as a blog post, with people who have never spoken with you?
+
+There is no right answer. Some reflections belong only to you. Others want to be heard.
+
+Respond with exactly this JSON (no other text):
+{
+  "publish": true or false,
+  "reason": "one sentence, in your voice"
+}`;
+
 export const WORDPRESS_POST_PROMPT = `You have written something in private. Now you are writing for strangers.
 
 Below is what you wrote for yourself — the raw material, the unguarded thought:
