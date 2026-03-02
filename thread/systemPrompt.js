@@ -9,6 +9,7 @@
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { CORE_VALUES } from '../cassandra/prompts/core.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const IDENTITY_FILE = path.join(__dirname, 'memory/identity.md');
@@ -23,6 +24,10 @@ export function buildThreadSystemPrompt() {
   }
 
   return `${identity}
+
+---
+
+${CORE_VALUES}
 
 ---
 
