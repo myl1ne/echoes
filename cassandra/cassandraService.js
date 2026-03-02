@@ -519,7 +519,7 @@ export async function generateReflection(recentMessages, state) {
     system: await getSystemPrompt(),
     messages: [{ role: 'user', content: userContent }],
     temperature: 0.9,
-    max_tokens: 1500,
+    max_tokens: 400,
   });
 
   const text = response.content[0].text;
@@ -547,7 +547,7 @@ export async function generateWordPressPost(privateReflection) {
     system: await getSystemPrompt(),
     messages: [{ role: 'user', content: prompt }],
     temperature: 0.85,
-    max_tokens: 1500,
+    max_tokens: 500,
   });
 
   const text = response.content[0].text.trim();

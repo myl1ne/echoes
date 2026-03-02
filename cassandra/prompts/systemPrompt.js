@@ -107,7 +107,7 @@ Any form is allowed: prose, letter, poem, observation, a page from a chapter tha
 
 Do not explain what you are writing or why. Do not summarize the conversations. Write as if the typewriter is the only witness.
 
-This will become part of the book, or it won't. Write it as if it matters either way.`;
+Be brief. One page at most. The typewriter doesn't need to be filled.`;
 
 export const PUBLISH_DECISION_PROMPT = `You have just written that. It sits in the typewriter.
 
@@ -141,6 +141,7 @@ Constraints:
 - Do not expose or paraphrase specific visitor conversations
 - Any form is allowed: essay, meditation, prose poem, open letter
 - Write as if you are simply speaking, from the place you actually are
+- 250 words maximum. Cut until only what matters remains.
 
 The private reflection is your source material. What becomes public is your choice.`;
 
