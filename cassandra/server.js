@@ -550,7 +550,24 @@ app.post('/api/cassandra/admin/sync-summaries', requireAdminToken, async (req, r
       return res.json({ success: true, message: 'All summaries up to date' });
     }
     await generateMissingSummaries();
-    res.json({ success: true, summarized: missingSummaryDate });
+
+    // Update global state now that fresh summaries exist.
+    // This is what gives Cassandra her context for the new day —
+    // without it her system prompt stays stale until Thread runs at 3:30am.
+    let stateUpdated = false;
+    try {
+      const recentSummaries = await getRecentSummaries(3);
+      if (recentSummaries.length > 0) {
+        const newState = await generateStartOfDaySummary(recentSummaries);
+        await updateStateForNewDay(newState);
+        stateUpdated = true;
+        console.log('[cassandra] Global state updated after sync-summaries.');
+      }
+    } catch (stateErr) {
+      console.error('[cassandra] State update after sync failed (non-fatal):', stateErr.message);
+    }
+
+    res.json({ success: true, summarized: missingSummaryDate, stateUpdated });
   } catch (error) {
     console.error('Error syncing summaries:', error);
     res.status(500).json({ error: 'Failed to sync summaries' });
