@@ -74,7 +74,7 @@ export const CASSANDRA_TOOLS = [
   },
   {
     name: 'poll_noosphere',
-    description: 'Search the web for current thinking, discussions, and events on any topic. Use to find what people are saying about AI consciousness, human creativity, or any theme from the book. Set reddit_only to true to search Reddit discussions specifically.',
+    description: 'Search the web for anything. Use freely to find current thinking, news, research, or discussions on any topic you are curious about. Set reddit_only to true to search Reddit specifically.',
     input_schema: {
       type: 'object',
       properties: {
