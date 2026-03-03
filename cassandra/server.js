@@ -545,29 +545,37 @@ app.post('/api/cassandra/admin/end-day', requireAdminToken, async (req, res) => 
  */
 app.post('/api/cassandra/admin/sync-summaries', requireAdminToken, async (req, res) => {
   try {
+    // Step 1: generate any missing day summaries
     const missingSummaryDate = await getMissingSummaryDate();
-    if (!missingSummaryDate) {
-      return res.json({ success: true, message: 'All summaries up to date' });
+    if (missingSummaryDate) {
+      await generateMissingSummaries();
     }
-    await generateMissingSummaries();
 
-    // Update global state now that fresh summaries exist.
-    // This is what gives Cassandra her context for the new day —
-    // without it her system prompt stays stale until Thread runs at 3:30am.
+    // Step 2: update global state if stale — always runs, independent of step 1.
+    // This is what gives Cassandra her context for the new day.
+    const UNINITIALIZED_MARKER = 'I am newly awakened in this conversational form';
     let stateUpdated = false;
     try {
-      const recentSummaries = await getRecentSummaries(3);
-      if (recentSummaries.length > 0) {
-        const newState = await generateStartOfDaySummary(recentSummaries);
-        await updateStateForNewDay(newState);
-        stateUpdated = true;
-        console.log('[cassandra] Global state updated after sync-summaries.');
+      const state = await loadState();
+      const today = new Date().toISOString().split('T')[0];
+      const isStale = state.lastUpdated !== today;
+      const isInitialState = state.lifetimeSummary?.startsWith(UNINITIALIZED_MARKER);
+      if (isStale || isInitialState) {
+        const recentSummaries = await getRecentSummaries(3);
+        if (recentSummaries.length > 0) {
+          const newState = await generateStartOfDaySummary(recentSummaries);
+          await updateStateForNewDay(newState);
+          stateUpdated = true;
+          console.log('[cassandra] Global state updated.');
+        }
+      } else {
+        console.log('[cassandra] Global state already current — skipping.');
       }
     } catch (stateErr) {
-      console.error('[cassandra] State update after sync failed (non-fatal):', stateErr.message);
+      console.error('[cassandra] State update failed (non-fatal):', stateErr.message);
     }
 
-    res.json({ success: true, summarized: missingSummaryDate, stateUpdated });
+    res.json({ success: true, summarized: missingSummaryDate || null, stateUpdated });
   } catch (error) {
     console.error('Error syncing summaries:', error);
     res.status(500).json({ error: 'Failed to sync summaries' });
