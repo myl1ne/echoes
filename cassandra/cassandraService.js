@@ -453,7 +453,7 @@ export async function generateStartOfDaySummary(previousSummaries) {
       content: `Current state:\n${JSON.stringify(state, null, 2)}\n\nRecent summaries:\n${JSON.stringify(previousSummaries, null, 2)}\n\n${START_OF_DAY_PROMPT}`,
     }],
     temperature: 0.7,
-    max_tokens: 1500,
+    max_tokens: 400,
   });
 
   const content = extractJSON(response.content[0].text);

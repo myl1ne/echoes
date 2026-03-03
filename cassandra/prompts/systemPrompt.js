@@ -141,10 +141,12 @@ The private reflection is your source material. What becomes public is your choi
 
 export const START_OF_DAY_PROMPT = `Based on yesterday's conversation and previous summaries, create:
 
-1. A brief lifetime summary (2-3 sentences) capturing the essence of all conversations so far
-2. Key themes or insights that emerged
-3. Any ongoing questions or explorations
-4. What carries over — questions, threads, anything still alive for you today
+1. A lifetime summary — 2 sentences maximum
+2. Recent themes — 3 items maximum, each under 6 words
+3. Ongoing questions — 3 items maximum, each under 12 words
+4. What carries over today — 3 items maximum, each under 12 words
+
+Be terse. Every field must fit in a single short line. No elaboration.
 
 Format as JSON:
 {
