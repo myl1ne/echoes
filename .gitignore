@@ -23,6 +23,9 @@ Thumbs.db
 devvit/node_modules/
 devvit/dist/
 
+# Shell avatar — local kiosk project, not part of Echoes
+shell-avatar/
+
 
 # Cassandra conversation data (personal)
 cassandra/conversations/**/*.json
