@@ -159,6 +159,8 @@ class AgentLoop {
 
   _handlePersonTurn(event) {
     if (event.type === 'utterance') {
+      // Try to upgrade fallback session to real identity if recognition has caught up
+      this._initCassandraSession();
       this._resetSessionTimer();
       this._callLLM(event);
       return;
@@ -250,27 +252,47 @@ class AgentLoop {
     setAvatarState('idle');
     console.log('[agentLoop] → idle');
 
-    // Flush any buffered exchange to Cassandra
+    // Flush any remaining buffered exchange then reset session state
     this._flushExchangeToCassandra();
-    this._lastSessionEndTime = Date.now();
+    this._lastSessionEndTime  = Date.now();
+    this._cassandraConvId     = null;
+    this._cassandraVisitorId  = null;
   }
 
   // ─── Cassandra integration ───────────────────────────────────────────────────
 
   /**
-   * Called when a session opens for a recognised (or newly detected) person.
-   * Inits the Cassandra visitor conversation and handles episode splitting.
+   * Called when a session opens. Inits a Cassandra visitor conversation.
+   *
+   * Uses the face-recognition personId if available; otherwise falls back to
+   * a random session UUID so conversations are never silently dropped.
+   * If recognition fires later in the session (personId appears), call this
+   * again — it will upgrade to the real identity if not already set.
    */
   async _initCassandraSession() {
     const activePerson = worldState.scene.people.find(
       p => p.id === worldState.scene.activePerson
     );
-    const visitorId = activePerson?.personId ?? null;
-    if (!visitorId) return; // unknown face — can't link until registered
+    const recognizedId = activePerson?.personId ?? null;
 
+    // If we already have a Cassandra session open, only upgrade it if we now
+    // have a real personId and were previously on a fallback UUID.
+    if (this._cassandraConvId) {
+      if (recognizedId && this._cassandraVisitorId !== recognizedId) {
+        // Recognition resolved mid-session — re-init under the real identity
+        console.log(`[agentLoop] Upgrading Cassandra session from fallback to ${recognizedId}`);
+        this._cassandraVisitorId = recognizedId;
+        const conv = await cassandraLink.initVisitor(recognizedId);
+        if (conv) this._cassandraConvId = conv.id;
+      }
+      return;
+    }
+
+    // Use recognized ID or fall back to a per-session UUID
+    const visitorId = recognizedId ?? crypto.randomUUID();
     this._cassandraVisitorId = visitorId;
 
-    // Check episode split: if idle gap since last session > threshold → new episode
+    // Episode split check
     const idleGap = Date.now() - this._lastSessionEndTime;
     const splitThreshold = episodeSplitThresholdMs ?? 30 * 60 * 1000;
     const shouldSplit = this._lastSessionEndTime > 0 && idleGap > splitThreshold;
@@ -286,7 +308,7 @@ class AgentLoop {
       this._cassandraConvId = conv.id;
     }
 
-    console.log(`[agentLoop] Cassandra session: visitor=${visitorId} conv=${this._cassandraConvId}`);
+    console.log(`[agentLoop] Cassandra session: visitor=${visitorId}${recognizedId ? '' : ' (fallback UUID)'} conv=${this._cassandraConvId}`);
   }
 
   /**
