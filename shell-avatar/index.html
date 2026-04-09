@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Shell Avatar</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body {
+      width: 100%; height: 100%;
+      background: #0a0a0a;
+      overflow: hidden;
+      user-select: none;
+    }
+    #bg-canvas {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      z-index: 0;
+    }
+    #avatar-canvas {
+      position: relative; /* stacking context above fixed bg-canvas */
+      z-index: 1;
+      width: 100%; height: 100%;
+      display: block;
+      touch-action: none;
+    }
+    #debug-overlay {
+      position: fixed;
+      top: 10px; left: 10px;
+      z-index: 10;
+      color: rgba(255,255,255,0.4);
+      font-family: monospace;
+      font-size: 11px;
+      pointer-events: none;
+      display: none; /* shown in dev mode */
+    }
+    #debug-overlay.visible { display: block; }
+
+    /* ── Speech UI ───────────────────────────────────────────── */
+    #speech-ui {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      padding: 0 48px 52px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+      pointer-events: none;
+      z-index: 10;
+    }
+    #user-speech {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      font-size: 14px;
+      color: rgba(255, 255, 255, 0.75);
+      background: rgba(255, 255, 255, 0.07);
+      border: 1px solid rgba(255, 255, 255, 0.13);
+      border-radius: 20px;
+      padding: 5px 18px;
+      max-width: 560px;
+      text-align: center;
+      opacity: 0;
+      transition: opacity 0.4s ease;
+      min-height: 28px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    #avatar-speech {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      font-size: 19px;
+      font-weight: 300;
+      letter-spacing: 0.02em;
+      line-height: 1.5;
+      color: rgba(255, 255, 255, 0.93);
+      text-align: center;
+      max-width: 680px;
+      text-shadow: 0 1px 6px rgba(0, 0, 0, 0.95), 0 2px 16px rgba(0, 0, 0, 0.7);
+      opacity: 0;
+      transition: opacity 0.3s ease;
+    }
+  </style>
+
+  <!--
+    Live2D Cubism Core — must load BEFORE pixi-live2d-display.
+    Download CubismSdkForWeb from: https://www.live2d.com/download/cubism-sdk/
+    Place live2dcubismcore.min.js in ./lib/live2dcubismcore.min.js
+  -->
+  <script src="./lib/CubismSdkForWeb-5-r.4/Core/live2dcubismcore.min.js"></script>
+  <!--
+    Import map — must appear before any <script type="module">.
+    Maps bare 'three' specifier used inside GLTFLoader and other three addons.
+  -->
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "./node_modules/three/build/three.module.js",
+      "three/addons/": "./node_modules/three/examples/jsm/"
+    }
+  }
+  </script>
+</head>
+<body>
+  <canvas id="bg-canvas"></canvas>
+  <canvas id="avatar-canvas"></canvas>
+  <video id="camera-feed" style="display:none" playsinline autoplay muted></video>
+  <div id="debug-overlay"></div>
+  <!--
+    Load MediaPipe in browser (ESM) context.
+    Dynamic import() inside a Node.js CJS module uses Node's ESM loader,
+    which rejects https:// URLs and crashes the renderer process.
+    Loading here via <script type="module"> uses Chromium's loader instead.
+    Sets window.MediaPipeVision + dispatches 'mediapipe-ready'.
+    Requires: npm install @mediapipe/tasks-vision
+  -->
+  <script type="module">
+    try {
+      const { FaceDetector, FilesetResolver } =
+        await import('./node_modules/@mediapipe/tasks-vision/vision_bundle.mjs');
+      window.MediaPipeVision = {
+        FaceDetector,
+        FilesetResolver,
+        wasmPath: './node_modules/@mediapipe/tasks-vision/wasm',
+      };
+      console.log('[mediapipe] Loaded from node_modules.');
+    } catch (e) {
+      console.warn('[mediapipe] Load failed — camera disabled:', e.message);
+    }
+    window.dispatchEvent(new Event('mediapipe-ready'));
+  </script>
+  <!--
+    face-api.js — face detection + landmarks + 128D recognition descriptors.
+    Loaded here (browser context) to use WebGL / TensorFlow.js correctly.
+    Sets window.faceapi. Models must be in shell-avatar/models/face-api/.
+    Run: node scripts/download-face-models.js
+  -->
+  <script src="./node_modules/@vladmandic/face-api/dist/face-api.js"></script>
+
+  <!--
+    Three.js + GLTFLoader — loaded in browser ESM context to avoid CJS/ESM conflict.
+    Sets window.THREE and window.ThreeGLTFLoader, dispatches 'three-ready'.
+    Requires: npm install three
+  -->
+  <script type="module">
+    try {
+      const THREE = await import('three');
+      const { GLTFLoader } = await import('three/addons/loaders/GLTFLoader.js');
+      window.THREE = THREE;
+      window.ThreeGLTFLoader = GLTFLoader;
+      console.log('[three] Loaded from node_modules.');
+    } catch (e) {
+      console.warn('[three] Load failed — background disabled:', e.message);
+    }
+    window.dispatchEvent(new Event('three-ready'));
+  </script>
+
+  <!-- Whisper ASR runs in the main process via IPC (see main.js asr:init / asr:transcribe). -->
+  <script src="./src/renderer.js"></script>
+</body>
+</html>

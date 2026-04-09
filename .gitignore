@@ -23,8 +23,9 @@ Thumbs.db
 devvit/node_modules/
 devvit/dist/
 
-# Shell avatar — local kiosk project, not part of Echoes
-shell-avatar/
+# Shell avatar — binary assets excluded via shell-avatar/.gitignore
+shell-avatar/dist/
+shell-avatar/node_modules/
 
 
 # Cassandra conversation data (personal)

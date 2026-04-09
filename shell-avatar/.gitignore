@@ -1,0 +1,12 @@
+node_modules/
+dist/
+
+# Binary assets — large/licensed, not committed to repo
+# Characters: download Live2D models separately (Airi, CIOKun, Echo, Cactus...)
+Characters/
+# Backgrounds: GLB scene files
+Backgrounds/
+# lib: Cubism SDK for Web (download from cubism.live2d.com)
+lib/
+# models: face-api weights — run `node scripts/download-face-models.js`
+models/
