@@ -177,6 +177,8 @@ class AgentLoop {
 
   _onDispatcherIdle() {
     if (this._turnState !== 'avatar_turn') return;
+    // Flush completed exchange to Cassandra before opening the person turn
+    this._flushExchangeToCassandra();
     // Avatar finished its turn — open session window, wait for person
     startSession();
     this._turnState = 'person_turn';
@@ -192,10 +194,9 @@ class AgentLoop {
     setAvatarState('thinking');
     console.log(`[agentLoop] → avatar_turn (trigger: ${triggerEvent?.type})`);
 
-    // Buffer the utterance that triggered this turn
-    if (triggerEvent?.type === 'utterance' && triggerEvent?.data?.text) {
-      this._pendingUserText = triggerEvent.data.text;
-    }
+    // Reset per-turn buffers — each turn is one exchange
+    this._pendingUserText  = triggerEvent?.type === 'utterance' ? (triggerEvent.data?.text ?? null) : null;
+    this._pendingSunnyText = null;
 
     const doCall = async () => {
       if (USE_STUB) return this._stubResponse(triggerEvent);
