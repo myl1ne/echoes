@@ -82,36 +82,48 @@ async function executeAction(action, avatar) {
     }
 
     case 'registerPerson': {
-      const descriptor = faceRecognition.getActiveDescriptor();
-      if (!descriptor) {
-        console.warn('[avatarAction] registerPerson: no active face descriptor available.');
+      const activeId     = worldState.scene.activePerson;
+      const activeFace   = worldState.scene.people.find(p => p.id === activeId);
+      const descriptor   = faceRecognition.getActiveDescriptor();
+
+      let person = null;
+
+      // Priority 1: worldState already has a personId for this face (recognition ran)
+      // → use that exact entry, just update the name
+      if (activeFace?.personId) {
+        person = peopleStore.get(activeFace.personId);
+        if (person) {
+          person.name = action.name;
+          peopleStore.save();
+          console.log(`[avatarAction] Named existing person: "${person.name}" (id: ${person.id})`);
+        }
+      }
+
+      // Priority 2: no personId yet — try descriptor match, then create new
+      if (!person && descriptor) {
+        const { recognition: recConfig } = require('../../config');
+        const existing = peopleStore.findByDescriptor(descriptor, recConfig.threshold * 1.3);
+        if (existing) {
+          existing.name = action.name;
+          peopleStore.save();
+          person = existing;
+          console.log(`[avatarAction] Named by descriptor match: "${person.name}" (id: ${person.id})`);
+        } else {
+          person = peopleStore.register(descriptor, action.name);
+          console.log(`[avatarAction] Registered new person: "${person.name}" (id: ${person.id})`);
+        }
+      }
+
+      if (!person) {
+        console.warn('[avatarAction] registerPerson: could not resolve person — no face data available.');
         break;
       }
-      // Check for existing match before creating a new entry — prevents duplicate
-      // registrations when face tracking re-assigns IDs mid-session or when the
-      // LLM emits registerPerson more than once.
-      const { recognition: recConfig } = require('../../config');
-      const existing = peopleStore.findByDescriptor(descriptor, recConfig.threshold * 1.3);
-      let person;
-      if (existing) {
-        // Update name on the existing person rather than creating a new one
-        existing.name = action.name;
-        peopleStore.save();
-        person = existing;
-        console.log(`[avatarAction] Updated existing person: "${person.name}" (id: ${person.id})`);
-      } else {
-        person = peopleStore.register(descriptor, action.name);
-        console.log(`[avatarAction] Registered new person: "${person.name}" (id: ${person.id})`);
-      }
-      // Update the active person entry in worldState in-place
-      const activeId = worldState.scene.activePerson;
-      for (const p of worldState.scene.people) {
-        if (p.id === activeId) {
-          p.personId   = person.id;
-          p.personName = person.name;
-          p.isKnown    = true;
-          break;
-        }
+
+      // Update worldState in-place
+      if (activeFace) {
+        activeFace.personId   = person.id;
+        activeFace.personName = person.name;
+        activeFace.isKnown    = true;
       }
       // Relay name to Cassandra visitor profile — fire-and-forget
       cassandraLink.setVisitorName(person.id, person.name);
