@@ -839,6 +839,29 @@ app.post('/api/cassandra/admin/refresh-mind-maps', requireAdminToken, async (req
 // ─── Thread endpoints ──────────────────────────────────────────────────────────
 
 /**
+ * Log a Sunny kiosk exchange directly into a visitor's conversation.
+ * Does NOT call the LLM — purely for archiving Sunny's interactions into
+ * Cassandra's visitor/episode/summary pipeline.
+ */
+app.post('/api/cassandra/admin/log-messages', requireAdminToken, async (req, res) => {
+  try {
+    const { visitorId, conversationId, messages } = req.body;
+    if (!visitorId || !conversationId || !Array.isArray(messages) || messages.length === 0) {
+      return res.status(400).json({ error: 'visitorId, conversationId, messages[] required' });
+    }
+    validateVisitorId(visitorId);
+    for (const msg of messages) {
+      if (!msg.role || !msg.content) continue;
+      await addMessage(visitorId, conversationId, msg.role, msg.content);
+    }
+    res.json({ success: true, logged: messages.length });
+  } catch (error) {
+    console.error('Error logging Sunny messages:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+/**
  * Run Thread's heartbeat — agentic loop that reads, reflects, and writes.
  * Called nightly by Cloud Scheduler at 3:30am (after Cassandra's 3:00am run).
  */
