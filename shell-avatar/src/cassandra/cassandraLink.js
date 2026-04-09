@@ -96,7 +96,7 @@ class CassandraLink {
         method:  'POST',
         headers: {
           'Content-Type':  'application/json',
-          'x-admin-token': this._adminToken,
+          'Authorization': `Bearer ${this._adminToken}`,
         },
         body: JSON.stringify({ visitorId, conversationId, messages }),
       });

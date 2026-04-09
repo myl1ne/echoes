@@ -33,6 +33,12 @@ const _results = new Map();
 // Descriptor of the largest (closest) face in the last recognition pass
 let _activeDescriptor = null;
 
+// Temporal history per position — used for smoothing and adaptive learning
+// posKey → { personId, personName, hits }
+// hits: increments on match, decrements on miss, clamped 0–TEMPORAL_MAX
+const _posHistory  = new Map();
+const TEMPORAL_MAX = 4;  // frames of confidence before we trust temporal identity
+
 // ─── Public API ──────────────────────────────────────────────────────────────
 
 /**
@@ -122,6 +128,9 @@ async function _recognize() {
       .withFaceLandmarks()
       .withFaceDescriptors();
 
+    // Track which positions were seen this pass — decay history for absent ones
+    const seenKeys = new Set();
+
     _results.clear();
     _activeDescriptor = null;
 
@@ -137,27 +146,87 @@ async function _recognize() {
       };
 
       const descriptor = det.descriptor; // Float32Array[128]
-      const person     = peopleStore.findByDescriptor(descriptor, recConfig.threshold);
+      const posKey     = _posKey(screenPos);
+      const history    = _posHistory.get(posKey);
 
-      _results.set(_posKey(screenPos), {
-        screenPos,
-        descriptor,
-        personId:   person?.id   ?? null,
-        personName: person?.name ?? null,
-      });
+      let resolvedPerson = null;
+      let matchType      = 'unknown';
 
-      if (person) {
-        console.log(`[recognition] Recognized: "${person.name}"`);
-        peopleStore.addDescriptorSample(person.id, descriptor, recConfig.maxSamples);
+      // ── Stage 1: strict match ──────────────────────────────────────────────
+      const strictMatch = peopleStore.findByDescriptor(descriptor, recConfig.threshold);
+      if (strictMatch) {
+        resolvedPerson = strictMatch;
+        matchType      = 'strict';
+        peopleStore.addDescriptorSample(strictMatch.id, descriptor, recConfig.maxSamples);
+
+      // ── Stage 2: soft match + temporal confirmation (adaptive learning) ───
       } else {
+        const softThreshold = recConfig.threshold * 1.3;
+        const softMatch     = peopleStore.findByDescriptor(descriptor, softThreshold);
+        if (softMatch && history?.personId === softMatch.id && history.hits >= 2) {
+          // Descriptor is close-ish AND we've recently seen this person here
+          // → accept the match and learn the new appearance
+          resolvedPerson = softMatch;
+          matchType      = 'adaptive';
+          peopleStore.addDescriptorSample(softMatch.id, descriptor, recConfig.maxSamples);
+          peopleStore.save(); // persist immediately — new appearance data is valuable
+          console.log(`[recognition] Adapting "${softMatch.name}" to new appearance.`);
+
+        // ── Stage 3: temporal smoothing (no descriptor update) ───────────────
+        } else if (history?.hits >= TEMPORAL_MAX) {
+          // Strong recent history at this position — don't flip to unknown on a single miss
+          const knownPerson = peopleStore.get(history.personId);
+          if (knownPerson) {
+            resolvedPerson = knownPerson;
+            matchType      = 'temporal';
+          }
+        }
+      }
+
+      // Update temporal history
+      if (resolvedPerson) {
+        _posHistory.set(posKey, {
+          personId:   resolvedPerson.id,
+          personName: resolvedPerson.name,
+          hits:       Math.min(TEMPORAL_MAX, (history?.personId === resolvedPerson.id ? history.hits : 0) + 1),
+        });
+        if (matchType === 'strict') {
+          console.log(`[recognition] Recognized: "${resolvedPerson.name}"`);
+        } else if (matchType === 'temporal') {
+          console.log(`[recognition] Temporal: "${resolvedPerson.name}" (smoothed)`);
+        }
+      } else {
+        // Decay history — a face is here but we can't identify it
+        if (history) {
+          const decayed = history.hits - 1;
+          if (decayed <= 0) _posHistory.delete(posKey);
+          else _posHistory.set(posKey, { ...history, hits: decayed });
+        }
         console.log(`[recognition] Unknown face at (${screenPos.x.toFixed(2)}, ${screenPos.y.toFixed(2)})`);
       }
+
+      _results.set(posKey, {
+        screenPos,
+        descriptor,
+        personId:   resolvedPerson?.id   ?? null,
+        personName: resolvedPerson?.name ?? null,
+      });
+
+      seenKeys.add(posKey);
 
       // Track largest (closest) face
       const area = box.width * box.height;
       if (area > largestArea) {
         largestArea       = area;
         _activeDescriptor = descriptor;
+      }
+    }
+
+    // Decay history for positions where no face was detected this pass
+    for (const [key, hist] of _posHistory) {
+      if (!seenKeys.has(key)) {
+        if (hist.hits <= 1) _posHistory.delete(key);
+        else _posHistory.set(key, { ...hist, hits: hist.hits - 1 });
       }
     }
   } catch (err) {

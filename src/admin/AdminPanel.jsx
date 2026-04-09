@@ -19,6 +19,7 @@ function AdminPanel() {
   const [loadingVisitors, setLoadingVisitors] = useState(false);
   const [selectedVisitor, setSelectedVisitor] = useState(null);
   const [conversations, setConversations] = useState(null);
+  const [visitorSort, setVisitorSort] = useState({ col: 'lastSeen', dir: 'desc' });
   const [selectedConversation, setSelectedConversation] = useState(null);
   const [conversationDetail, setConversationDetail] = useState(null);
 
@@ -331,15 +332,36 @@ function AdminPanel() {
               <table className="admin-table">
                 <thead>
                   <tr>
-                    <th>Name</th>
-                    <th>ID</th>
-                    <th>First seen</th>
-                    <th>Last seen</th>
-                    <th>Conversations</th>
+                    {[
+                      { col: 'name',              label: 'Name' },
+                      { col: 'visitorId',         label: 'ID' },
+                      { col: 'firstSeen',         label: 'First seen' },
+                      { col: 'lastSeen',          label: 'Last seen' },
+                      { col: 'conversationCount', label: 'Conversations' },
+                    ].map(({ col, label }) => (
+                      <th
+                        key={col}
+                        style={{ cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap' }}
+                        onClick={() => setVisitorSort(s =>
+                          s.col === col ? { col, dir: s.dir === 'asc' ? 'desc' : 'asc' } : { col, dir: 'asc' }
+                        )}
+                      >
+                        {label}
+                        {visitorSort.col === col ? (visitorSort.dir === 'asc' ? ' ▲' : ' ▼') : ' ·'}
+                      </th>
+                    ))}
                   </tr>
                 </thead>
                 <tbody>
-                  {visitors.map(v => (
+                  {[...visitors].sort((a, b) => {
+                    const { col, dir } = visitorSort;
+                    const av = a[col] ?? '';
+                    const bv = b[col] ?? '';
+                    const cmp = typeof av === 'number'
+                      ? av - bv
+                      : String(av).localeCompare(String(bv));
+                    return dir === 'asc' ? cmp : -cmp;
+                  }).map(v => (
                     <>
                       <tr
                         key={v.visitorId}

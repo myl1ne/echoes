@@ -87,7 +87,22 @@ async function executeAction(action, avatar) {
         console.warn('[avatarAction] registerPerson: no active face descriptor available.');
         break;
       }
-      const person = peopleStore.register(descriptor, action.name);
+      // Check for existing match before creating a new entry — prevents duplicate
+      // registrations when face tracking re-assigns IDs mid-session or when the
+      // LLM emits registerPerson more than once.
+      const { recognition: recConfig } = require('../../config');
+      const existing = peopleStore.findByDescriptor(descriptor, recConfig.threshold * 1.3);
+      let person;
+      if (existing) {
+        // Update name on the existing person rather than creating a new one
+        existing.name = action.name;
+        peopleStore.save();
+        person = existing;
+        console.log(`[avatarAction] Updated existing person: "${person.name}" (id: ${person.id})`);
+      } else {
+        person = peopleStore.register(descriptor, action.name);
+        console.log(`[avatarAction] Registered new person: "${person.name}" (id: ${person.id})`);
+      }
       // Update the active person entry in worldState in-place
       const activeId = worldState.scene.activePerson;
       for (const p of worldState.scene.people) {
@@ -98,7 +113,6 @@ async function executeAction(action, avatar) {
           break;
         }
       }
-      console.log(`[avatarAction] Person registered: "${person.name}" (id: ${person.id})`);
       // Relay name to Cassandra visitor profile — fire-and-forget
       cassandraLink.setVisitorName(person.id, person.name);
       break;
