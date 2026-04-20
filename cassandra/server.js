@@ -300,12 +300,13 @@ app.post('/api/cassandra/message', llmLimiter, async (req, res) => {
 
     const response = await sendMessage(messages, null, conversationId, currentFragmentId, visitorId);
 
-    // Save the conversation
+    // Save the conversation and update visitor profile
     const lastUserMessage = messages[messages.length - 1];
     if (lastUserMessage && lastUserMessage.role === 'user') {
       await addMessage(visitorId, conversationId, 'user', lastUserMessage.content);
     }
     await addMessage(visitorId, conversationId, 'assistant', response);
+    await updateVisitorLastSeen(visitorId);
 
     res.json({ response });
   } catch (error) {
@@ -350,12 +351,13 @@ app.post('/api/cassandra/message/stream', llmLimiter, async (req, res) => {
     res.write(`data: [DONE]\n\n`);
     res.end();
 
-    // Save conversation after streaming completes
+    // Save conversation and update visitor profile after streaming completes
     const lastUserMessage = messages[messages.length - 1];
     if (lastUserMessage && lastUserMessage.role === 'user') {
       await addMessage(visitorId, conversationId, 'user', lastUserMessage.content);
     }
     await addMessage(visitorId, conversationId, 'assistant', fullResponse);
+    await updateVisitorLastSeen(visitorId);
   } catch (error) {
     console.error('Error in streaming message:', error);
     // Give visitors a human-readable message for rate limit errors
