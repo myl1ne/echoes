@@ -253,25 +253,25 @@ function Heatmap({ data }) {
 
 // ── Period summary table ─────────────────────────────────────────────────────
 
-function SummaryTable({ days, rangeDays }) {
+function SummaryTable({ days, rangeDays, globalSummary, totalReflections }) {
   if (!days.length) return null;
 
   const n = days.length;
-  const sum  = k => days.reduce((acc, d) => acc + (d.summary[k] ?? 0), 0);
-  const sumR = k => days.reduce((acc, d) => acc + (d[k] ?? 0), 0);
-  const avg  = k => (sum(k) / n).toFixed(1);
+  const avg = k => ((globalSummary[k] ?? 0) / n).toFixed(1);
 
-  const totalVisitors   = sum('uniqueVisitors');
-  const totalNew        = sum('newVisitors');
-  const totalReturning  = sum('returningVisitors');
-  const totalMessages   = sum('messagesReceived');
-  const totalEpisodes   = sum('episodesStarted');
-  const totalChatOpens  = sum('chatOpened');
-  const totalNamed      = sum('namesSubmitted');
-  const totalFragViews  = sum('fragmentsViewed');
-  const totalReflect    = sumR('reflectionCount');
-  const totalHeartbeats = sum('heartbeats');
-  const totalAudioPlays = sum('audioPlayed');
+  // Use globalSummary (de-duped across entire range) for totals
+  const g = globalSummary;
+  const totalVisitors   = g.uniqueVisitors   ?? 0;
+  const totalNew        = g.newVisitors       ?? 0;
+  const totalReturning  = g.returningVisitors ?? 0;
+  const totalMessages   = g.messagesReceived  ?? 0;
+  const totalEpisodes   = g.episodesStarted   ?? 0;
+  const totalChatOpens  = g.chatOpened        ?? 0;
+  const totalNamed      = g.namesSubmitted    ?? 0;
+  const totalFragViews  = g.fragmentsViewed   ?? 0;
+  const totalHeartbeats = g.heartbeats        ?? 0;
+  const totalAudioPlays = g.audioPlayed       ?? 0;
+  const totalReflect    = totalReflections    ?? 0;
 
   const avgDepth = totalEpisodes > 0 ? (totalMessages / totalEpisodes).toFixed(1) : '—';
   const knownVisitors = totalNew + totalReturning;
@@ -402,10 +402,10 @@ function SummaryTable({ days, rangeDays }) {
               Funnel
             </div>
             {[
-              { label: 'Visited',         count: totalVisitors  },
-              { label: 'Opened chat',     count: totalChatOpens },
-              { label: 'Sent message',    count: totalMessages  },
-              { label: 'Named',           count: totalNamed     },
+              { label: 'Visited',            count: totalVisitors  },
+              { label: 'Opened chat',        count: totalChatOpens },
+              { label: 'Started episode',    count: totalEpisodes  },
+              { label: 'Named',              count: totalNamed     },
             ].map(({ label, count }, i, arr) => {
               const pct = i > 0 && arr[0].count > 0 ? Math.round((count / arr[0].count) * 100) : 100;
               return (
@@ -568,7 +568,12 @@ export default function AnalyticsHistory({ apiFetch }) {
             <LineChart data={returnRate} label="Return Rate (%)" color="#4a6a7c" height={80} />
           </section>
 
-          <SummaryTable days={series} rangeDays={rangeDays} />
+          <SummaryTable
+            days={series}
+            rangeDays={rangeDays}
+            globalSummary={historyData.globalSummary ?? {}}
+            totalReflections={historyData.totalReflections ?? 0}
+          />
         </>
       )}
     </>

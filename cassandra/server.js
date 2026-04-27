@@ -1019,7 +1019,12 @@ app.get('/api/cassandra/admin/analytics/range', requireAdminToken, async (req, r
       reflectionCount: reflectionsByDate[date] || 0,
     }));
 
-    res.json({ from, to, days });
+    // Global aggregate across all events — gives true de-duped unique visitors
+    const allEvents = eventsByDate.flatMap(({ evts }) => evts);
+    const globalSummary = aggregateEvents(allEvents);
+    const totalReflections = Object.values(reflectionsByDate).reduce((s, n) => s + n, 0);
+
+    res.json({ from, to, days, globalSummary, totalReflections });
   } catch (error) {
     console.error('Error loading analytics range:', error);
     res.status(500).json({ error: 'Failed to load analytics range' });
