@@ -5,6 +5,7 @@ import { loadFragmentContent } from '../fragmentLoader';
 import { generateAudio, playAudioBlob, downloadAudio } from '../audioService';
 import EditorMode from '../EditorMode';
 import MindMapViewer from './MindMapViewer';
+import AnalyticsHistory from './AnalyticsHistory';
 
 const API_BASE = import.meta.env.VITE_API_URL || '';
 
@@ -626,6 +627,12 @@ function AdminPanel() {
         {/* ── Analytics tab ── */}
         {activeTab === 'analytics' && (
           <div className="admin-analytics">
+            <AnalyticsHistory apiFetch={apiFetch} />
+
+            <section className="admin-state-section">
+              <h2>Day View</h2>
+            </section>
+
             <div className="admin-analytics-controls">
               <input
                 type="date"

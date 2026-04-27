@@ -231,10 +231,10 @@ export async function saveReflection(timestamp, content, date, wpUrl = null) {
   await getDb().collection('cassandra_reflections').doc(timestamp).set(doc);
 }
 
-export async function listReflections() {
+export async function listReflections(limit = 20) {
   const snapshot = await getDb().collection('cassandra_reflections')
     .orderBy('generatedAt', 'desc')
-    .limit(20)
+    .limit(limit)
     .get();
 
   return snapshot.docs.map(doc => ({

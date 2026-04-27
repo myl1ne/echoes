@@ -979,6 +979,54 @@ app.get('/api/cassandra/admin/analytics', requireAdminToken, async (req, res) =>
 });
 
 /**
+ * Get analytics summary over a date range (admin endpoint)
+ * Returns one entry per day: date, summary, eventCount, reflectionCount
+ */
+app.get('/api/cassandra/admin/analytics/range', requireAdminToken, async (req, res) => {
+  try {
+    const today = new Date().toISOString().split('T')[0];
+    const from = req.query.from || today;
+    const to = req.query.to || today;
+
+    // Build list of dates in range
+    const dates = [];
+    const cursor = new Date(from + 'T00:00:00Z');
+    const end = new Date(to + 'T00:00:00Z');
+    while (cursor <= end) {
+      dates.push(cursor.toISOString().split('T')[0]);
+      cursor.setUTCDate(cursor.getUTCDate() + 1);
+    }
+    if (dates.length > 180) {
+      return res.status(400).json({ error: 'Range too large (max 180 days)' });
+    }
+
+    // Fetch events for all dates in parallel
+    const [eventsByDate, allReflections] = await Promise.all([
+      Promise.all(dates.map(d => storage.queryAnalyticsEvents(d).then(evts => ({ date: d, evts })))),
+      storage.listReflections(500),
+    ]);
+
+    // Index reflections by date
+    const reflectionsByDate = {};
+    for (const r of allReflections) {
+      if (r.date) reflectionsByDate[r.date] = (reflectionsByDate[r.date] || 0) + 1;
+    }
+
+    const days = eventsByDate.map(({ date, evts }) => ({
+      date,
+      summary: aggregateEvents(evts),
+      eventCount: evts.length,
+      reflectionCount: reflectionsByDate[date] || 0,
+    }));
+
+    res.json({ from, to, days });
+  } catch (error) {
+    console.error('Error loading analytics range:', error);
+    res.status(500).json({ error: 'Failed to load analytics range' });
+  }
+});
+
+/**
  * Audio generation proxy (keeps ElevenLabs API key server-side)
  */
 app.post('/api/audio/generate', async (req, res) => {

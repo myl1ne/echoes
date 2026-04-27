@@ -396,8 +396,18 @@ export async function sendMessage(messages, onChunk = null, currentConversationI
         ];
       }
 
-      await logEvent('response_complete', { visitorId, conversationId: currentConversationId, durationMs: Date.now() - startTime, toolsUsed: [...new Set(toolsUsed)], streamedChars: streamedText.length });
-      return streamedText;
+      // If streaming tool loop exhausted without a text response, force a final synthesis
+      const finalSynthesis = await client.messages.create({
+        model,
+        system: systemPrompt,
+        messages: currentMessages,
+        max_tokens: 2000,
+        temperature: 0.8,
+      });
+      const synthesisText = finalSynthesis.content.find(b => b.type === 'text')?.text || '';
+      if (synthesisText) onChunk(synthesisText);
+      await logEvent('response_complete', { visitorId, conversationId: currentConversationId, durationMs: Date.now() - startTime, toolsUsed: [...new Set(toolsUsed)], streamedChars: (streamedText + synthesisText).length });
+      return streamedText + synthesisText;
     }
 
     await logEvent('response_complete', { visitorId, conversationId: currentConversationId, durationMs: Date.now() - startTime, toolsUsed: [], streamedChars: streamedText.length });
@@ -430,6 +440,18 @@ export async function sendMessage(messages, onChunk = null, currentConversationI
         { role: 'assistant', content: response.content },
         { role: 'user', content: toolResults },
       ];
+    }
+
+    // If the loop exhausted all iterations without a text response, force a final synthesis
+    if (!fullResponse && currentMessages.length > messages.length) {
+      const final = await client.messages.create({
+        model,
+        system: systemPrompt,
+        messages: currentMessages,
+        max_tokens: 2000,
+        temperature: 0.8,
+      });
+      fullResponse = final.content.find(b => b.type === 'text')?.text || '';
     }
 
     await logEvent('response_complete', { visitorId, conversationId: currentConversationId, durationMs: Date.now() - startTime, toolsUsed: [...new Set(toolsUsed)], streamedChars: fullResponse.length });
