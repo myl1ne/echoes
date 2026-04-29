@@ -1012,3 +1012,183 @@
   text-align: right;
   white-space: nowrap;
 }
+
+/* ── Manuscript Editor ── */
+
+.admin-editor {
+  display: flex;
+  flex-direction: row;
+  height: 100%;
+  overflow: hidden;
+}
+
+.admin-editor-sidebar {
+  width: 220px;
+  flex-shrink: 0;
+  overflow-y: auto;
+  border-right: 1px solid var(--admin-border);
+  padding: 0.75rem 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.admin-editor-cycle {
+  margin-bottom: 0.25rem;
+}
+
+.admin-editor-cycle-label {
+  font-size: 0.65rem;
+  color: var(--admin-text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  padding: 0.5rem 0.75rem 0.2rem;
+}
+
+.admin-editor-sidebar-item {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  padding: 0.3rem 0.75rem;
+  background: none;
+  border: none;
+  color: var(--admin-text-dim);
+  font-family: var(--admin-mono);
+  font-size: 0.72rem;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.1s, color 0.1s;
+}
+
+.admin-editor-sidebar-item:hover {
+  background: var(--admin-selected);
+  color: var(--admin-text);
+}
+
+.admin-editor-sidebar-item.active {
+  background: var(--admin-selected);
+  color: var(--admin-accent-hi);
+}
+
+.admin-editor-main {
+  flex: 1;
+  display: flex;
+  flex-direction: row;
+  overflow: hidden;
+  min-width: 0;
+}
+
+.admin-editor-text {
+  flex: 1;
+  overflow-y: auto;
+  padding: 1.5rem;
+  min-width: 0;
+}
+
+.admin-editor-fragment-header {
+  margin-bottom: 1.5rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid var(--admin-border);
+}
+
+.admin-editor-paras {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.admin-editor-para {
+  cursor: pointer;
+  padding: 0.5rem 0.6rem;
+  border-radius: 2px;
+  line-height: 1.8;
+  font-size: 0.83rem;
+  color: var(--admin-text);
+  border-left: 2px solid transparent;
+  transition: background 0.1s, border-color 0.1s;
+}
+
+.admin-editor-para:hover {
+  background: var(--admin-selected);
+}
+
+.admin-editor-para.selected {
+  background: var(--admin-selected);
+  border-left-color: var(--admin-accent-hi);
+  color: var(--admin-accent-hi);
+}
+
+.admin-editor-chat {
+  width: 420px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  border-left: 1px solid var(--admin-border);
+  overflow: hidden;
+}
+
+.admin-editor-chat-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.5rem 0.75rem;
+  border-bottom: 1px solid var(--admin-border);
+  font-size: 0.75rem;
+  color: var(--admin-accent-hi);
+  letter-spacing: 0.05em;
+  flex-shrink: 0;
+}
+
+.admin-editor-messages {
+  flex: 1;
+  overflow-y: auto;
+  padding: 1rem 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.admin-editor-context {
+  padding: 0.4rem 0.75rem;
+  border-top: 1px solid var(--admin-border);
+  font-size: 0.7rem;
+  color: var(--admin-text-dim);
+  font-style: italic;
+  flex-shrink: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.admin-editor-input-row {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 0.5rem;
+  padding: 0.6rem 0.75rem;
+  border-top: 1px solid var(--admin-border);
+  flex-shrink: 0;
+}
+
+.admin-editor-input {
+  flex: 1;
+  background: var(--admin-surface);
+  border: 1px solid var(--admin-border);
+  color: var(--admin-text);
+  font-family: var(--admin-mono);
+  font-size: 0.8rem;
+  padding: 0.4rem 0.6rem;
+  resize: none;
+  line-height: 1.5;
+  outline: none;
+}
+
+.admin-editor-input:focus {
+  border-color: var(--admin-border-light);
+}
+
+.admin-editor-input:disabled {
+  opacity: 0.5;
+}

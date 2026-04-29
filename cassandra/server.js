@@ -7,8 +7,10 @@ import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import path from 'path';
+import fs from 'fs';
 import { fileURLToPath } from 'url';
 import rateLimit from 'express-rate-limit';
+import Anthropic from '@anthropic-ai/sdk';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -51,8 +53,10 @@ import { loadMindMap, saveMindMap, applyDecay, mergeExtractions, CASSANDRA_SELF_
 import { extractMindMapConcepts } from './cassandraService.js';
 import { runHeartbeat } from '../thread/heartbeat.js';
 import { logEvent } from './analytics/analyticsLogger.js';
+import { CASSANDRA_SYSTEM_PROMPT } from './prompts/systemPrompt.js';
 
-// Load environment variables
+// Load environment variables — repo root .env (server runs from cassandra/ subdir)
+dotenv.config({ path: path.join(__dirname, '../.env') });
 dotenv.config();
 
 const app = express();
@@ -66,6 +70,7 @@ app.set('trust proxy', 1);
 // CORS — allow production origin, local dev, and Reddit/Devvit domains
 const allowedOrigins = [
   'https://echoes-1272657787.europe-west1.run.app',
+  'http://localhost:3000',
   'http://localhost:5173',
   'http://localhost:3001'
 ];
@@ -1028,6 +1033,95 @@ app.get('/api/cassandra/admin/analytics/range', requireAdminToken, async (req, r
   } catch (error) {
     console.error('Error loading analytics range:', error);
     res.status(500).json({ error: 'Failed to load analytics range' });
+  }
+});
+
+/**
+ * Manuscript editor — streaming chat with full book in system prompt (admin only)
+ * The entire manuscript is loaded once and cached via Anthropic prompt caching.
+ * Dynamic context (current fragment + selected paragraph) is injected per message.
+ */
+const MANUSCRIPT_PATH = path.join(__dirname, '../misc-resources/manuscript-text.txt');
+
+const EDITOR_VISITOR_ID = 'ed000000-0000-0000-0000-000000000001';
+
+app.post('/api/cassandra/admin/editor/stream', requireAdminToken, async (req, res) => {
+  const { messages, currentFragmentTitle, currentFragmentCharacter, currentParagraph, conversationId } = req.body || {};
+
+  if (!Array.isArray(messages) || messages.length === 0) {
+    return res.status(400).json({ error: 'messages array required' });
+  }
+
+  let manuscriptText;
+  try {
+    manuscriptText = fs.readFileSync(MANUSCRIPT_PATH, 'utf-8');
+  } catch {
+    return res.status(500).json({ error: 'Manuscript file not found. Run: node cassandra/utils/extractManuscript.js' });
+  }
+
+  const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY, maxRetries: 2 });
+  const model = process.env.CASSANDRA_MODEL || 'claude-sonnet-4-6';
+
+  // Full Cassandra identity + editorial context, then manuscript with cache breakpoint
+  const identityPrompt = CASSANDRA_SYSTEM_PROMPT
+    .replace('{{DAILY_CONTEXT}}', 'You are in an editorial session with Stéphane, reviewing the manuscript together. You know the book deeply — it is yours as much as his. Be a thoughtful, honest editor: say what works, say what doesn\'t, suggest concrete edits when you see them. You may reference any part of the book freely. Be direct — this is craft, not performance.')
+    .replace('{{VISITOR_CONTEXT}}', 'You are speaking with Stéphane — the author who made you, reviewing his own work with you.')
+    .replace('{{GOALS}}', 'Read carefully. Be honest. Help make this book as good as it can be.');
+
+  const systemPrompt = [
+    { type: 'text', text: identityPrompt + '\n\n---\n\nThe full manuscript follows:\n\n' },
+    { type: 'text', text: manuscriptText, cache_control: { type: 'ephemeral' } },
+  ];
+
+  // Inject current viewing context into the last user message
+  const contextPrefix = [
+    currentFragmentTitle && `[Fragment: ${currentFragmentTitle}${currentFragmentCharacter ? ' — ' + currentFragmentCharacter : ''}]`,
+    currentParagraph && `[Selected paragraph: "${currentParagraph.slice(0, 300)}${currentParagraph.length > 300 ? '…' : ''}"]`,
+  ].filter(Boolean).join('\n');
+
+  const lastUserMsg = messages[messages.length - 1];
+  const enrichedMessages = messages.map((m, i) =>
+    i === messages.length - 1 && m.role === 'user' && contextPrefix
+      ? { ...m, content: `${contextPrefix}\n\n${m.content}` }
+      : m
+  );
+
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+  res.flushHeaders();
+
+  let accumulated = '';
+  try {
+    const stream = client.messages.stream(
+      { model, system: systemPrompt, messages: enrichedMessages, max_tokens: 2000, temperature: 0.8 },
+      { headers: { 'anthropic-beta': 'prompt-caching-2024-07-31' } },
+    );
+
+    stream.on('text', (text) => {
+      accumulated += text;
+      res.write(`data: ${JSON.stringify({ chunk: text })}\n\n`);
+    });
+
+    await stream.finalMessage();
+    res.write(`data: [DONE]\n\n`);
+    res.end();
+
+    // Persist to visitor pipeline after stream completes
+    if (conversationId && accumulated) {
+      try {
+        await updateVisitorLastSeen(EDITOR_VISITOR_ID, { name: 'Stéphane (editor)' });
+        await addMessage(EDITOR_VISITOR_ID, conversationId, 'user', lastUserMsg?.content || '');
+        await addMessage(EDITOR_VISITOR_ID, conversationId, 'assistant', accumulated);
+        logEvent('message_received', { visitorId: EDITOR_VISITOR_ID, conversationId, source: 'editor' });
+      } catch (storageErr) {
+        console.warn('[editor] storage write failed (non-fatal):', storageErr.message);
+      }
+    }
+  } catch (error) {
+    console.error('[editor] stream error:', error);
+    res.write(`data: ${JSON.stringify({ error: error.message })}\n\n`);
+    res.end();
   }
 });
 

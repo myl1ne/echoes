@@ -6,6 +6,7 @@ import { generateAudio, playAudioBlob, downloadAudio } from '../audioService';
 import EditorMode from '../EditorMode';
 import MindMapViewer from './MindMapViewer';
 import AnalyticsHistory from './AnalyticsHistory';
+import ManuscriptEditor from './ManuscriptEditor';
 
 const API_BASE = import.meta.env.VITE_API_URL || '';
 
@@ -283,7 +284,7 @@ function AdminPanel() {
       <header className="admin-header">
         <span className="admin-header-title">✶⃝⟡ Cassandra Admin</span>
         <nav className="admin-tabs">
-          {['visitors', 'actions', 'state', 'thread', 'heartbeat', 'mindmap', 'analytics', 'generate', 'editor'].map(tab => (
+          {['visitors', 'actions', 'state', 'thread', 'heartbeat', 'mindmap', 'analytics', 'generate', 'editor', 'review'].map(tab => (
             <button
               key={tab}
               className={`admin-tab ${activeTab === tab ? 'active' : ''}`}
@@ -710,6 +711,10 @@ function AdminPanel() {
         {/* ── Mind Map tab ── */}
         {activeTab === 'mindmap' && (
           <MindMapViewer apiFetch={apiFetch} />
+        )}
+
+        {activeTab === 'review' && (
+          <ManuscriptEditor token={token} />
         )}
 
       </main>
